@@ -24,7 +24,7 @@
 
 
 /*
- * Authors: Thomas Hellström 2004.
+ * Authors: Thomas HellstrÃ¶m 2004.
  */
 
 

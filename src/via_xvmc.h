@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VIA Unichrome XvMC extension X server driver.
  *
- * Copyright (c) 2004 Thomas Hellström. All rights reserved.
+ * Copyright (c) 2004 Thomas HellstrÃ¶m. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

@@ -24,7 +24,7 @@
 
 
 /*
- *Author: Thomas Hellström, 2004.
+ *Author: Thomas HellstrÃ¶m, 2004.
  *Change: 0.9.3, Bugfix by Pascal Brisset.
  *Change: 0.10.1, Support for interlaced streams Thanks to Pascal Brisset.
  */
