@@ -31,14 +31,18 @@
 #include "via_capture.h"
 #include "via.h"
 #include "ddmpeg.h"
+#ifdef XF86DRI
 #include "xf86drm.h"
+#endif
 
 #include "via_overlay.h"
 #include "via_driver.h"
 #include "via_regrec.h"
 #include "via_priv.h"
 #include "via_swov.h"
+#ifdef XF86DRI
 #include "via_common.h"
+#endif
 
 
 /*

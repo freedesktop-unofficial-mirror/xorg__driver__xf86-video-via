@@ -203,6 +203,7 @@ static const char *vgaHWSymbols[] = {
     "vgaHWLock",
     "vgaHWUnlock",
     "vgaHWFreeHWRec",
+    "vgaHWddc1SetSpeedWeak",
     NULL
 };
 
@@ -243,9 +244,9 @@ static const char *i2cSymbols[] = {
 };
 
 static const char *xaaSymbols[] = {
-    "XAACopyROP",
-    "XAACopyROP_PM",
-    "XAAPatternROP",
+    "XAAGetCopyROP",
+    "XAAGetCopyROP_PM",
+    "XAAGetPatternROP",
     "XAACreateInfoRec",
     "XAADestroyInfoRec",
     "XAAInit",
@@ -649,7 +650,8 @@ VIAddc1(int scrnIndex)
     VGAOUT8(0x3c5, (tmp | 0x11));
 
     if ((pMon = xf86PrintEDID(
-        xf86DoEDID_DDC1(scrnIndex,vgaHWddc1SetSpeed,VIAddc1Read))) != NULL)
+        xf86DoEDID_DDC1(scrnIndex,vgaHWddc1SetSpeedWeak(),
+	                VIAddc1Read))) != NULL)
         success = TRUE;
     xf86SetDDCproperties(pScrn,pMon);
 
