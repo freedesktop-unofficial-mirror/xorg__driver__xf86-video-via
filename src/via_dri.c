@@ -370,7 +370,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		    pConfigs[i].accumRedSize = 16;
         		    pConfigs[i].accumGreenSize = 16;
         		    pConfigs[i].accumBlueSize = 16;
-        		    pConfigs[i].accumAlphaSize = 16;
+        		    pConfigs[i].accumAlphaSize = 0;
         		}
 			else {
         		    pConfigs[i].accumRedSize = 0;
@@ -407,10 +407,11 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		
 			pConfigs[i].auxBuffers = 0;
         		pConfigs[i].level = 0;
-			if (accum)
+			if (accum) {
         		    pConfigs[i].visualRating = GLX_SLOW_VISUAL_EXT;
-			else
+			} else {
         		    pConfigs[i].visualRating = GLX_NONE_EXT;
+			}
         		pConfigs[i].transparentPixel = GLX_NONE_EXT;
         		pConfigs[i].transparentRed = 0;
         		pConfigs[i].transparentGreen = 0;
@@ -644,23 +645,6 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     }
 
 	   
-    pVia->IsPCI = !VIADRIAgpInit(pScreen, pVia);
-  
-    if (pVia->IsPCI) {
-	VIADRIPciInit(pScreen, pVia);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] use pci.\n" );
-    }
-    else
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] use agp.\n" );
-
-    if (!(VIADRIFBInit(pScreen, pVia))) {
-	VIADRICloseScreen(pScreen);
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[dri] frame buffer initialize fial .\n" );
-	return FALSE;
-    }
-    
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] frame buffer initialized.\n" );
-  
     if (!(VIAInitVisualConfigs(pScreen))) {
 	VIADRICloseScreen(pScreen);
 	return FALSE;
@@ -752,6 +736,23 @@ VIADRIFinishScreenInit(ScreenPtr pScreen)
 
     pVia->pDRIInfo->driverSwapMethod = DRI_HIDE_X_CONTEXT;
     
+    pVia->IsPCI = !VIADRIAgpInit(pScreen, pVia);
+  
+    if (pVia->IsPCI) {
+	VIADRIPciInit(pScreen, pVia);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] use pci.\n" );
+    }
+    else
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] use agp.\n" );
+
+    if (!(VIADRIFBInit(pScreen, pVia))) {
+	VIADRICloseScreen(pScreen);
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[dri] frame buffer initialization failed.\n" );
+	return FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] frame buffer initialized.\n" );
+  
     DRIFinishScreenInit(pScreen);
     
     if (!VIADRIKernelInit(pScreen, pVia)) {
