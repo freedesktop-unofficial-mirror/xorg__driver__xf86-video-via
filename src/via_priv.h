@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.4 2003/12/17 18:57:18 dawes Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.2 2004/04/23 19:53:54 eich Exp $ */
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.3 2003/08/27 15:16:12 tsi Exp $ */
 
 #ifndef _VIA_PRIV_H_
