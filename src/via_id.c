@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  *
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -15,10 +15,10 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -36,35 +36,93 @@
  * There's no reason for this to be known outside of via_id.o
  * Only a pointer to an single entry will ever be used outside.
  *
- * The .tw trend is all too apparent and is bound to make anyone
- * prejudist. This isn't just VIA alone. -- Luc.
+ */
+/*
+ * Known missing devices:
+ * cle266:
+ * Biostar M6VLQ Grand
+ * Biostar M6VLQ Pro
+ * PcChips M789CLU (with C3 onboard)
+ * PcChips M791G
+ * Soltek SL-B6A-F800 (C3 800Mhz onboard)
+ * Soltek SL-B6A-F1000 (Qbic IQ3601 | C3 1Ghz onboard)
+ * + loads of semi-embedded devices.
+ *
+ * km400:
+ * Abit VA-20: ? km400 vs km400a ?
+ * ECS KM400-M
+ * ECS KM400-M2
+ * ECS KM400A-M2
+ * PcChips M851G
+ * PcChips M851AG
+ * Soltek SL-B7C-FGR (Qbic EQ3704 | km400a)
+ * Soyo SY-K7VMP
+ * Soyo SY-K7VMP2
+ *
+ * k8m800:
+ * Abit KV8-MAX3
+ * Abit KV8
+ * Biostar Ideq 210V (km400a)
+ * Biostar M7VIZ
+ * Chaintech MK8M800
+ * ECS k8m800-m2
+ * Epox EP-8KMM5I (km400a)
+ * MSI K8M Neo-V
+ * PcChips M861G
+ * Soltek SL-B9C-FGR (Qbic EQ3802-300P)
+ * Soltek SL-K8M800I-R
+ *
+ * pm800:
+ * Asrock P4VM8
+ * Biostar Ideq 210M
+ * Biostar P4VMA-M
+ * Biostar P4M80-M7 (is this even a unichrome?)
+ * Chaintech MPM800
+ * Gigabyte 8VM800M
+ * PcChips M955G
+ * PcChips M957G
+ * Soltek SL-PM800I
+ * Soltek SL-PM800I-R
+ * Soltek SL-PM800
+ * Soyo SY-P4VM800
  *
  */
 struct ViaCardIdStruct ViaCardId[] = {
     /* CLE266 */
-    {"ECS G320",                           VIA_CLE266,  0x1019, 0xB320, VIA_DEVICE_CRT | VIA_DEVICE_LCD, VIA_DEVICE_LCD},
-    {"VIA EPIA M/MII/...",                 VIA_CLE266,  0x1106, 0x3122, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
+    {"ECS G320",                              VIA_CLE266,  0x1019, 0xB320, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
+    {"VIA EPIA M/MII/...",                    VIA_CLE266,  0x1106, 0x3122, VIA_DEVICE_CRT | VIA_DEVICE_TV},
     /* KM400 */
-    {"Acer Aspire 135x",                   VIA_KM400,   0x1025, 0x0033, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"Asustek A7V8X-MX",                   VIA_KM400,   0x1043, 0x80ED, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
-    {"Asustek A7V8X-MX SE",                VIA_KM400,   0x1043, 0x8118, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
-    {"Soltek SL-75MIV2",                   VIA_KM400,   0x1106, 0x0000, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* VIA/0x0000 -- soltek is .tw */
-    {"Shuttle FX43",                       VIA_KM400,   0x1297, 0xF643, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
-    {"Giga-byte 7VM400",                   VIA_KM400,   0x1458, 0xD000, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* 7VM400M-RZ, GA-7VM400AMF */
-    {"DFI KM400-MLV",                      VIA_KM400,   0x1462, 0x7061, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* ??? MSI ??? */
-    {"Averatec 322x",                      VIA_KM400,   0x14FF, 0x030D, VIA_DEVICE_CRT | VIA_DEVICE_LCD, VIA_DEVICE_LCD},
-    {"Gericom Hummer Advance",             VIA_KM400,   0x1584, 0x800A, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"ASRock Inc. K7VM4",                  VIA_KM400,   0x1849, 0x7205, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
-    {"Soyo K7VME",                         VIA_KM400,   0xA723, 0x10FD, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    {"Acer Aspire 135x",                      VIA_KM400,   0x1025, 0x0033, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV},
+    {"Asustek A7V8X-MX",                      VIA_KM400,   0x1043, 0x80ED, VIA_DEVICE_CRT},
+    {"Asustek A7V8X-MX SE/A7V400-MX",         VIA_KM400,   0x1043, 0x8118, VIA_DEVICE_CRT},
+    {"Mitac 8375X",                           VIA_KM400,   0x1071, 0x8375, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV}, /* aka UMAX 585T */
+    {"Soltek SL-75MIV2",                      VIA_KM400,   0x1106, 0x0000, VIA_DEVICE_CRT}, /* VIA/0x0000 */
+    {"Biostar iDEQ 200V/Chaintech 7VIF4",     VIA_KM400,   0x1106, 0x7205, VIA_DEVICE_CRT}, /* VIA/KM400 -- 2 distinct devices */
+    {"Shuttle FX43",                          VIA_KM400,   0x1297, 0xF643, VIA_DEVICE_CRT | VIA_DEVICE_TV},
+    {"Giga-byte 7VM400(A)M",                  VIA_KM400,   0x1458, 0xD000, VIA_DEVICE_CRT}, /* 7VM400M, GA-7VM400AM */
+    {"MSI KM4(A)M-V",                         VIA_KM400,   0x1462, 0x7061, VIA_DEVICE_CRT}, /* aka "DFI KM400-MLV" */
+    {"MSI KM4(A)M-L",                         VIA_KM400,   0x1462, 0x7348, VIA_DEVICE_CRT},
+    {"Abit VA-10 (1)",                        VIA_KM400,   0x147B, 0x140B, VIA_DEVICE_CRT},
+    {"Abit VA-10 (2)",                        VIA_KM400,   0x147B, 0x140C, VIA_DEVICE_CRT}, /* VA-10/VA-20 id difference is not confirmed */
+    {"Averatec 322x",                         VIA_KM400,   0x14FF, 0x030D, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
+    {"Uniwill 755CI",                         VIA_KM400,   0x1584, 0x800A, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV}, /* aka "Gericom hummer advance", "Maxdata M-Book 1200X" */
+    {"Epox EP-8KMM3I",                        VIA_KM400,   0x1695, 0x9023, VIA_DEVICE_CRT},
+    {"ASRock Inc. K7VM2/3/4",                 VIA_KM400,   0x1849, 0x7205, VIA_DEVICE_CRT},
+    {"Soyo K7VME",                            VIA_KM400,   0xA723, 0x10FD, VIA_DEVICE_CRT},
     /* K8M800 */
-    {"Acer Aspire 136x",                   VIA_K8M800,  0x1025, 0x006E, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"Mitac 8399/Pogolinux Konabook 3100", VIA_K8M800,  0x1071, 0x8399, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"Giga-byte GA-K8VM800M",              VIA_K8M800,  0x1106, 0x3108, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* VIA/K8M800 -- giga-byte is .tw */
-    {"Shuttle FX83",                       VIA_K8M800,  0x1297, 0xF683, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
+    {"Acer Aspire 136x",                      VIA_K8M800,  0x1025, 0x006E, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV},
+    {"Mitac 8399",                            VIA_K8M800,  0x1071, 0x8399, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV}, /* aka "pogolinux konabook 3100" */
+    {"DFI K8M800-MLVF",                       VIA_K8M800,  0x1106, 0x3108, VIA_DEVICE_CRT}, /* VIA/K8M800 -- ??? PciInfo Alignment issue ??? */
+    {"Shuttle FX83",                          VIA_K8M800,  0x1297, 0xF683, VIA_DEVICE_CRT | VIA_DEVICE_TV},
+    {"Sharp Actius AL27",                     VIA_K8M800,  0x13BD, 0x1044, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
+    {"Giga-byte GA-K8VM800M",                 VIA_K8M800,  0x1458, 0xD000, VIA_DEVICE_CRT},
+    {"MSI K8MM-ILSR",                         VIA_K8M800,  0x1462, 0x7410, VIA_DEVICE_CRT},
+    {"Biostar K8VGA-M",                       VIA_K8M800,  0x1565, 0x1203, VIA_DEVICE_CRT},
     /* PM800 */
-    {"Biostar P4VMA-M",                    VIA_PM800,   0x1565, 0x1202, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    {"Biostar P4VMA-M",                       VIA_PM800,   0x1565, 0x1202, VIA_DEVICE_CRT},
+    {"ECS PM800-M2",                          VIA_PM800,   0x1106, 0x3118, VIA_DEVICE_CRT}, /* VIA/PM800 */
     /* keep this */
-    {NULL,                                 VIA_UNKNOWN, 0x0000, 0x0000, VIA_DEVICE_NONE}
+    {NULL,                                    VIA_UNKNOWN, 0x0000, 0x0000, VIA_DEVICE_NONE}
 };
 
 /*
@@ -102,6 +160,10 @@ ViaCheckCardId(ScrnInfoPtr pScrn)
     struct ViaCardIdStruct *Id;
     VIAPtr pVia = VIAPTR(pScrn);
     
+    if ((pVia->PciInfo->subsysVendor == pVia->PciInfo->vendor) &&
+	(pVia->PciInfo->subsysCard == pVia->PciInfo->chipType))
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Manufacturer plainly copied main PCI"
+		   " ids to Subsystem/Card ids.\n");
     
     for (Id = ViaCardId; Id->String; Id++) {
 	if ((Id->Chip == pVia->Chipset) && 

@@ -1,6 +1,5 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_bandwidth.c,v 1.3 2004/01/05 00:34:17 dawes Exp $ */
 /*
- * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
@@ -144,6 +143,20 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
     VIAPtr pVia = VIAPTR(pScrn);
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetPrimaryFIFO\n"));
+
+    /* standard values */
+    ViaSeqMask(hwp, 0x17, 0x1F, 0xFF);
+
+    if (mode->CrtcHDisplay >= 1600) {
+	ViaSeqMask(hwp, 0x16, 0x0F, 0xBF);
+	ViaSeqMask(hwp, 0x18, 0x4F, 0xFF);
+    } else if (mode->CrtcHDisplay >= 1024) {
+	ViaSeqMask(hwp, 0x16, 0x0C, 0xBF);
+	ViaSeqMask(hwp, 0x18, 0x4C, 0xFF);
+    } else {
+	ViaSeqMask(hwp, 0x16, 0x08, 0xBF);
+	ViaSeqMask(hwp, 0x18, 0x4E, 0xFF);
+    }
 
     switch(pVia->Chipset) {
     case VIA_CLE266:

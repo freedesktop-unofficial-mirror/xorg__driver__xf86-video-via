@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VIA Unichrome XvMC extension X server driver.
  *
- * Copyright (c) 2004 Thomas Hellström. All rights reserved.
+ * Copyright (c) 2004 The Unichrome Project. All rights reserved.
  * Copyright (c) 2000 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -38,6 +38,7 @@
 #include "via.h"
 #include "via_dri.h"
 #include "via_driver.h"
+#include "via_id.h"
 
 #include "xf86xv.h"
 #include "fourcc.h"
@@ -192,9 +193,33 @@ static XF86MCSurfaceInfoRec Via_YV12_mpg2_surface =
     &yv12_subpicture_list
 };
 
-/*
- * FIXME: It remains to be checked whether the hardware can really do mpeg1. 
- */
+static XF86MCSurfaceInfoRec Via_YV12_mocomp_mpg12_surface =
+{
+    FOURCC_YV12,  
+    XVMC_CHROMA_FORMAT_420,
+    0,
+    1024,
+    1024,
+    1024,
+    1024,
+    XVMC_MPEG_1 | XVMC_MPEG_2 | XVMC_MOCOMP,
+    XVMC_OVERLAID_SURFACE | XVMC_BACKEND_SUBPICTURE,
+    &yv12_subpicture_list
+};
+
+static XF86MCSurfaceInfoRec Via_YV12_idct_mpg12_surface =
+{
+    FOURCC_YV12,  
+    XVMC_CHROMA_FORMAT_420,
+    0,
+    1024,
+    1024,
+    1024,
+    1024,
+    XVMC_MPEG_1 | XVMC_MPEG_2 | XVMC_IDCT,
+    XVMC_OVERLAID_SURFACE | XVMC_BACKEND_SUBPICTURE,
+    &yv12_subpicture_list
+};
 
 static XF86MCSurfaceInfoRec Via_YV12_mpg1_surface =
 {
@@ -215,6 +240,13 @@ static XF86MCSurfaceInfoPtr ppSI[2] =
     (XF86MCSurfaceInfoPtr)&Via_YV12_mpg2_surface,
     (XF86MCSurfaceInfoPtr)&Via_YV12_mpg1_surface
 };
+
+static XF86MCSurfaceInfoPtr ppSI_mocomp[2] = 
+{
+  (XF86MCSurfaceInfoPtr)&Via_YV12_mocomp_mpg12_surface,
+  (XF86MCSurfaceInfoPtr)&Via_YV12_idct_mpg12_surface
+};
+
 
 /* List of subpicture types that we support */
 static XF86ImageRec ia44_subpicture = XVIMAGE_IA44;
@@ -250,7 +282,23 @@ static XF86MCAdaptorRec pAdapt =
     (xf86XvMCDestroySubpictureProcPtr)ViaXvMCDestroySubpicture
 };
 
+static XF86MCAdaptorRec pAdapt_mocomp = 
+{
+    "XV_SWOV",		/* name */
+    2,				/* num_surfaces */
+    ppSI_mocomp,		/* surfaces */
+    2,				/* num_subpictures */
+    Via_subpicture_list,		/* subpictures */
+    (xf86XvMCCreateContextProcPtr)ViaXvMCCreateContext,
+    (xf86XvMCDestroyContextProcPtr)ViaXvMCDestroyContext,
+    (xf86XvMCCreateSurfaceProcPtr)ViaXvMCCreateSurface,
+    (xf86XvMCDestroySurfaceProcPtr)ViaXvMCDestroySurface,
+    (xf86XvMCCreateSubpictureProcPtr)ViaXvMCCreateSubpicture,
+    (xf86XvMCDestroySubpictureProcPtr)ViaXvMCDestroySubpicture
+};
+
 static XF86MCAdaptorPtr ppAdapt[1] = {(XF86MCAdaptorPtr)&pAdapt};
+static XF86MCAdaptorPtr ppAdapt_mocomp[1] = {(XF86MCAdaptorPtr)&pAdapt_mocomp};
 
 static void mpegDisable(VIAPtr pVia,CARD32 val) 
 
@@ -268,7 +316,9 @@ void ViaInitXVMC(ScreenPtr pScreen)
   char *bID;
   drmVersionPtr drmVer;
 
-  pVia->XvMCEnabled = 0;
+  if (pVia->XvMCEnabled)
+      return;
+
   if(!pVia->directRenderingEnabled) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "[XvMC] Cannot use XvMC without DRI!\n");
@@ -280,12 +330,12 @@ void ViaInitXVMC(ScreenPtr pScreen)
 		 "[XvMC] Could not get drm version. Disabling XvMC\n");
       return;
   }
-  if (((drmVer->version_major <= 2) && (drmVer->version_minor < 0))) {
+  if (((drmVer->version_major <= 2) && (drmVer->version_minor < 4))) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		 "[XvMC] Kernel drm is not compatible with XvMC.\n"); 
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		 "[XvMC] Kernel drm version: %d.%d.%d "
-		 "and need at least version 2.0.0.\n",
+		 "and need at least version 2.4.0.\n",
 		 drmVer->version_major,drmVer->version_minor,
 		 drmVer->version_patchlevel); 
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
@@ -322,13 +372,23 @@ void ViaInitXVMC(ScreenPtr pScreen)
 
   initViaXvMC(vXvMC);
 
-  if (! xf86XvMCScreenInit(pScreen, 1, ppAdapt)) {
+  if (! xf86XvMCScreenInit(pScreen, 1, 
+			   (pVia->Chipset == VIA_KM400) ? 
+			   ppAdapt_mocomp : ppAdapt)) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		 "[XvMC] XvMCScreenInit failed. Disabling XvMC.\n");
       drmRmMap(pVia->drmFD,vXvMC->fbBase);
       return;
   }   
-  
+
+#if (XvMCVersion > 1) || (XvMCRevision > 0)
+  {
+      DRIInfoPtr pDRIInfo = pVia->pDRIInfo;
+      xf86XvMCRegisterDRInfo(pScreen, "viaXvMC",pDRIInfo->busIdString,
+			     VIAXVMC_MAJOR, VIAXVMC_MINOR, VIAXVMC_PL);
+  }
+#endif
+ 
   vXvMC->activePorts = 0;
   saPriv=(ViaXvMCSAreaPriv *) DRIGetSAREAPrivate(pScreen);
   saPriv->XvMCCtxNoGrabbed = ~0;
@@ -529,7 +589,7 @@ int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
   }   
   
   (*priv)[1] = numBuffers;
-  (*priv)[2] = sPriv->offsets[0] = ALIGN_TO_32_BYTES(sPriv->memory_ref.base);
+  (*priv)[2] = sPriv->offsets[0] = ALIGN_TO(sPriv->memory_ref.base, 32);
   for (i = 1; i < numBuffers; ++i) {
       (*priv)[i+2] = sPriv->offsets[i] = sPriv->offsets[i-1] + bufSize;
   }
@@ -602,7 +662,7 @@ int ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 		 "framebuffer memory!\n");
       return BadAlloc;
   }   
-  (*priv)[1] = sPriv->offsets[0] = ALIGN_TO_32_BYTES(sPriv->memory_ref.base);
+  (*priv)[1] = sPriv->offsets[0] = ALIGN_TO(sPriv->memory_ref.base, 32);
   
   vXvMC->sPrivs[srfNo] = sPriv;
   vXvMC->surfaces[srfNo] = pSubp->subpicture_id;
@@ -625,11 +685,6 @@ static void ViaXvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
   for(i=0; i < VIA_XVMC_MAX_CONTEXTS; i++) {
     if(vXvMC->contexts[i] == pContext->context_id) {
 
-	/*
-	 * Check if the context to be destroyed currently holds the decoder. 
-	 * In that case, release the decoder.
-	 */
-
 	context = vXvMC->cPrivs[i]->drmCtx;
 	sAPriv=(ViaXvMCSAreaPriv *) DRIGetSAREAPrivate(pScrn->pScreen);
 	portPriv = (XvPortRecPrivatePtr) pContext->port_priv;
@@ -641,24 +696,6 @@ static void ViaXvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
 	    vx->ctxDisplaying = 0;
 	}
 
-	if ((XVMC_DECODER_FUTEX(sAPriv)->lock & ~DRM_LOCK_CONT) ==
-	    (context | DRM_LOCK_HELD)) {
-	    DRM_CAS_RESULT(__ret);
-	    sAPriv->XvMCCtxNoGrabbed = ~0;
-	    DRM_CAS( XVMC_DECODER_FUTEX(sAPriv), context | DRM_LOCK_HELD,
-		     0, __ret);
-	    if (__ret) {
-
-		drm_via_futex_t fx;
-		fx.func = VIA_FUTEX_WAKE;
-		fx.lock = 0;
-		XVMC_DECODER_FUTEX(sAPriv)->lock = 0;
-		drmCommandWrite(pVia->drmFD, DRM_VIA_DEC_FUTEX,
-				&fx,sizeof(fx));
-		
-	    }
-	}
-		     
 	drmDestroyContext(pVia->drmFD,vXvMC->cPrivs[i]->drmCtx);
 	xfree(vXvMC->cPrivs[i]);
 	vXvMC->cPrivs[i] = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,6 +42,7 @@ void ViaVgahwMask(vgaHWPtr hwp, int indexaddress, CARD8 index,
 
 void ViaCrtcMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
 void ViaSeqMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
+void ViaGrMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
 
 #ifdef HAVE_DEBUG
 void ViaVgahwPrint(vgaHWPtr hwp);

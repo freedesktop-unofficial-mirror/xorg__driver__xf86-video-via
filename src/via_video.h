@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_video.h,v 1.3 2003/08/27 15:16:14 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -30,7 +29,7 @@
  * I N C L U D E S
  */
 
-/* #define   XV_DEBUG      1 */    /* write log msg to /var/log/XFree86.0.log */
+/* #define   XV_DEBUG      1 */   /* write log msg to /var/log/XFree86.0.log */
 #define   COLOR_KEY       1    /* set color key value from driver layer*/
 
 #ifdef XV_DEBUG
@@ -41,25 +40,10 @@
 
 #define HW_3123
 
-#define TRUE        1
-#define FALSE       0
-
 /* Definition for VideoStatus */
-#define VIDEO_NULL              0x00000000
-#define TV0SURFACE_CREATED      0x00000001
-#define TV1SURFACE_CREATED      0x00000002
-#define SWOV_SURFACE_CREATED    0x00000004
-#define HW_MPEG_ON              0x00000010
-#define TV0_VIDEO_ON            0x00000020
-#define TV1_VIDEO_ON            0x00000040
-#define SW_VIDEO_ON             0x00000080
-
-typedef struct {
-  unsigned long dwWidth;          /* On screen Width                  */
-  unsigned long dwHeight;         /* On screen Height                 */
-  unsigned long dwBPP;            /* Bits Per Pixel                   */
-  unsigned long dwRefreshRate;    /* Refresh rate of the mode         */
-}MODEINFO, * LPMODEINFO;
+#define VIDEO_NULL                  0x00000000
+#define VIDEO_SWOV_SURFACE_CREATED  0x00000001
+#define VIDEO_SWOV_ON               0x00000002
 
 #define SDR100  1
 #define SDR133  2

@@ -1,31 +1,20 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.4 2003/12/17 18:57:18 dawes Exp $ */
-
 #ifndef _VIA_PRIV_H_
 #define _VIA_PRIV_H_ 1
 
 #ifdef XF86DRI
 #include "via_common.h"
 #endif
-#include "via_capture.h"
 
 /*
  * Alignment macro functions
  */
-#define ALIGN_TO_32_BYTES(f)         (((f) + 31) & ~31)
-#define ALIGN_TO_16_BYTES(f)         (((f) + 15) & ~15)
-#define ALIGN_TO_256_BITS(f)         (((f) + 255) & ~255)
-#define ALIGN_TO_8_BYTES(f)          (((f) + 7) & ~7)
-#define ALIGN_TO_64_BITS(f)          (((f) + 63) & ~63)
-#define ENG_ALIGN_BYTE              ALIGN_TO_32_BYTES
-#define ENG_ALIGN_BIT               ALIGN_TO_256_BITS
+#define ALIGN_TO(f, alignment) (((f) + ((alignment)-1)) & ~((alignment)-1))
 
 /*
  * FOURCC definitions
  */
 
 #define FOURCC_VIA     0x4E4B4C57  /*VIA*/
-#define FOURCC_TV0     0x00325654  /*TV0*/
-#define FOURCC_TV1     0x00315654  /*TV1*/
 
 /*
  * Structures for create surface
@@ -106,8 +95,6 @@ typedef struct _DDLOCK
     unsigned long     dwVersion;             
     unsigned long     dwFourCC;
     unsigned long     dwPhysicalBase;
-    CAPDEVICE Capdev_TV0;
-    CAPDEVICE Capdev_TV1;
     SWDEVICE SWDevice;
 } DDLOCK;
 typedef DDLOCK * LPDDLOCK;
@@ -241,7 +228,6 @@ typedef VIAMem *VIAMemPtr;
 
 
 typedef struct  {
-    unsigned long   gdwVideoFlagTV1;
     unsigned long   gdwVideoFlagSW;
     unsigned long   gdwVideoFlagMPEG;
     unsigned long   gdwAlphaEnabled;		/* For Alpha blending use*/

@@ -21,12 +21,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.11 2004/01/29 03:13:24 dawes Exp $ */
 
 /*************************************************************************
  *
  *  File:       via_accel.c
- *  Content:    2D acceleration function for VIA/S3G UniChrom
+ *  Content:    2D acceleration function for VIA/S3G UniChrome
  *
  ************************************************************************/
 
@@ -121,6 +120,7 @@ static void VIASubsequentScanlineCPUToScreenColorExpandFill(
     int h,
     int skipleft);
 
+#if 0 /* Buggy. Temporarily disabled 2005-01-23 */
 static void VIASetupForScreenToScreenColorExpand(
     ScrnInfoPtr pScrn,
     int bg,
@@ -137,6 +137,8 @@ static void VIASubsequentScreenToScreenColorExpand(
     int srcx,
     int srcy,
     int offset);
+#endif
+
 
 static void VIASetupForImageWrite(
     ScrnInfoPtr pScrn,
@@ -484,9 +486,8 @@ VIAInitAccel(ScreenPtr pScreen)
 	HARDWARE_PATTERN_PROGRAMMED_ORIGIN |
 	0;
 
-    /*=* This function is only used in drawing check box when use RedHat 7.2
-     * Raleigh Theme. The behavior is a little strange, so we temporarily
-     * disable this function. *=*/
+#if 0 /* Buggy. Temporarily disabled 2005-01-23 */
+
     /* Screen to Screen color expansion. */
     xaaptr->SetupForScreenToScreenColorExpandFill =
 	VIASetupForScreenToScreenColorExpand;
@@ -496,6 +497,7 @@ VIAInitAccel(ScreenPtr pScreen)
 	BIT_ORDER_IN_BYTE_MSBFIRST |
 	ROP_NEEDS_SOURCE |
 	0;
+#endif
 
     /* Solid lines */
     xaaptr->SetupForSolidLine = VIASetupForSolidLine;
@@ -985,6 +987,7 @@ VIASubsequentScanlineCPUToScreenColorExpandFill(
 
 }
 
+#if 0 /* Buggy. Temporarily disabled 2005-01-23 */
 static void
 VIASetupForScreenToScreenColorExpand(
     ScrnInfoPtr pScrn,
@@ -1068,6 +1071,7 @@ VIASubsequentScreenToScreenColorExpand(
     dispatchCBufferAGP(pVia, buf);
 }
 
+#endif
 
 static void
 VIASetupForImageWrite(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -138,6 +138,21 @@ ViaSeqMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
     tmp |= (value & mask);
 
     hwp->writeSeq(hwp, index, tmp);
+}
+
+/*
+ *
+ */
+void 
+ViaGrMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
+{
+    CARD8 tmp;
+
+    tmp = hwp->readGr(hwp, index);
+    tmp &= ~mask;
+    tmp |= (value & mask);
+
+    hwp->writeGr(hwp, index, tmp);
 }
 
 /*

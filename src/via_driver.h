@@ -1,5 +1,5 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.13 2004/02/08 17:57:10 tsi Exp $ */
 /*
+ * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
@@ -52,10 +52,8 @@
 #include "xaa.h"
 
 #include "via_regs.h"
-#include "via_i2c.h"
 #include "via_bios.h"
 #include "via_priv.h"
-/* #include "ginfo.h" */
 #include "via_swov.h"
 
 #ifdef XF86DRI
@@ -69,7 +67,7 @@
 #define DRIVER_NAME     "via"
 #define VERSION_MAJOR   0
 #define VERSION_MINOR   1
-#define PATCHLEVEL      27
+#define PATCHLEVEL      30
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
 #define VIA_MAX_ACCEL_X         (2047)
@@ -80,59 +78,23 @@
 #define VIA_CBUFFERSIZE         512
 
 typedef struct {
-    unsigned char   SR08, SR0A, SR0F;
+    CARD8   SR08, SR0A, SR0F;
 
     /*   extended Sequencer registers */
-    unsigned char   SR10, SR11, SR12, SR13,SR14,SR15,SR16;
-    unsigned char   SR17, SR18, SR19, SR1A,SR1B,SR1C,SR1D,SR1E;
-    unsigned char   SR1F, SR20, SR21, SR22,SR23,SR24,SR25,SR26;
-    unsigned char   SR27, SR28, SR29, SR2A,SR2B,SR2C,SR2D,SR2E;
-    unsigned char   SR2F, SR30, SR31, SR32,SR33,SR34,SR40,SR41;
-    unsigned char   SR42, SR43, SR44, SR45,SR46,SR47;
+    CARD8   SR10, SR11, SR12, SR13,SR14,SR15,SR16;
+    CARD8   SR17, SR18, SR19, SR1A,SR1B,SR1C,SR1D,SR1E;
+    CARD8   SR1F, SR20, SR21, SR22,SR23,SR24,SR25,SR26;
+    CARD8   SR27, SR28, SR29, SR2A,SR2B,SR2C,SR2D,SR2E;
+    CARD8   SR2F, SR30, SR31, SR32,SR33,SR34,SR40,SR41;
+    CARD8   SR42, SR43, SR44, SR45,SR46,SR47;
 
     /*   extended CRTC registers */
-    unsigned char   CR13, CR30, CR31, CR32, CR33, CR34, CR35, CR36;
-    unsigned char   CR37, CR38, CR39, CR3A, CR40, CR41, CR42, CR43;
-    unsigned char   CR44, CR45, CR46, CR47, CR48, CR49, CR4A;
-    unsigned char   CRTCRegs[68];
-    unsigned char   TVRegs[0xFF];
-/*    unsigned char   LCDRegs[0x40];*/
+    CARD8   CR13, CR30, CR31, CR32, CR33, CR34, CR35, CR36;
+    CARD8   CR37, CR38, CR39, CR3A, CR40, CR41, CR42, CR43;
+    CARD8   CR44, CR45, CR46, CR47, CR48, CR49, CR4A;
+    CARD8   CRTCRegs[68];
+/*    CARD8   LCDRegs[0x40];*/
 } VIARegRec, *VIARegPtr;
-
-/*Definition for  CapturePortID*/
-#define PORT0     0      /* Capture Port 0*/
-#define PORT1     1      /* Capture Port 1*/
-
-typedef struct __viaVideoControl {
-  CARD16 PORTID;
-  CARD32 dwCompose;
-  CARD32 dwHighQVDO;
-  CARD32 VideoStatus;
-  CARD32 dwAction;
-#define ACTION_SET_PORTID      0
-#define ACTION_SET_COMPOSE     1
-#define ACTION_SET_HQV         2
-#define ACTION_SET_BOB	       4
-#define ACTION_SET_VIDEOSTATUS 8
-  Bool  Cap0OnScreen1;   /* True: Capture0 On Screen1 ; False: Capture0 On Screen0 */
-  Bool  Cap1OnScreen1;   /* True: Capture1 On Screen1 ; False: Capture1 On Screen0 */
-  Bool  MPEGOnScreen1;   /* True: MPEG On Screen1 ; False: MPEG On Screen0 */
-} VIAVideoControlRec, VIAVideoControlPtr;
-
-/* VIA Tuners */
-typedef struct
-{
-    int			decoderType;		/* Decoder I2C Type */
-#define SAA7108H		0
-#define SAA7113H		1
-#define SAA7114H		2
-    I2CDevPtr 		I2C;			/* Decoder I2C */
-    I2CDevPtr 		FMI2C;			/* FM Tuner I2C */
-    
-    /* Not yet used */
-    int			autoDetect;		/* Autodetect mode */
-    int			tunerMode;		/* Fixed mode */
-} ViaTunerRec, *ViaTunerPtr;
 
 /*
  * varables that need to be shared among different screens.
@@ -207,7 +169,6 @@ typedef struct _VIA {
     unsigned char*      BltBase;
     unsigned char*      MapBaseDense;
     unsigned char*      FBBase;
-    unsigned char*      FBStart;
     CARD8               MemClk;
 
     /* Private memory pool management */
@@ -267,23 +228,14 @@ typedef struct _VIA {
     /* I2C & DDC */
     I2CBusPtr           pI2CBus1;    
     I2CBusPtr           pI2CBus2;    
-    I2CBusPtr           pI2CBus3;    /* Future implementation: now gpioi2c */
+    I2CBusPtr           pI2CBus3;
     xf86MonPtr          DDC1;
     xf86MonPtr          DDC2;
-    GpioI2cRec          GpioI2c; /* should be weened off, but we have no info,
-				    no hardware that this code is known to 
-				    work with (properly) */
 
     /* MHS */
     Bool                IsSecondary;
     Bool                HasSecondary;
     Bool                SAMM;
-
-    /* Capture de-interlace Mode */
-    CARD32              Cap0_Deinterlace;
-    CARD32              Cap1_Deinterlace;
-
-    Bool                Cap0_FieldSwap;
 
 #ifdef XF86DRI
     Bool		directRenderingEnabled;
@@ -315,31 +267,28 @@ typedef struct _VIA {
 
     /* Video */
     swovRec		swov;
-    VIAVideoControlRec  Video;
+    CARD32              VideoStatus;
     VIAHWDiff		HWDiff;
     unsigned long	dwV1, dwV3;
     unsigned long	OverlaySupported;
     unsigned long	dwFrameNum;
 
-    pointer		VidReg;
-    unsigned long	gdwVidRegCounter;
+    CARD32*		VidRegBuffer; /* Temporary buffer for video overlay registers. */
+    unsigned long	VidRegCursor; /* Write cursor for VidRegBuffer. */
+
     unsigned long	old_dwUseExtendedFIFO;
     
-    /* Overlay TV Tuners */
-    ViaTunerPtr		Tuner[2];
-    I2CDevPtr		CXA2104S;
-    int			AudioMode;
-    int			AudioMute;
-
     ViaSharedPtr	sharedData;
 
 #ifdef HAVE_DEBUG
     Bool                DumpVGAROM;
     Bool                PrintVGARegs;
     Bool                PrintTVRegs;
+    Bool                I2CScan;
 #endif /* HAVE_DEBUG */
 } VIARec, *VIAPtr;
 
+#define VIAPTR(p) ((VIAPtr)((p)->driverPrivate))
 
 typedef struct
 {
@@ -354,19 +303,11 @@ typedef struct
 
     ScrnInfoPtr pSecondaryScrn;
     ScrnInfoPtr pPrimaryScrn;
-}VIAEntRec, *VIAEntPtr;
-
-
-/* Shortcuts.  These depend on a local symbol "pVia". */
-
-#define WaitIdle()      pVia->myWaitIdle(pVia)
-#define VIAPTR(p)       ((VIAPtr)((p)->driverPrivate))
-
+} VIAEntRec, *VIAEntPtr;
 
 /* Prototypes. */
 void VIAAdjustFrame(int scrnIndex, int y, int x, int flags);
 Bool VIASwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
-void ViaWaitIdle(ScrnInfoPtr pScrn);
 
 /* In via_cursor.c. */
 Bool VIAHWCursorInit(ScreenPtr pScreen);
@@ -408,18 +349,40 @@ void viaSetColorSpace(VIAPtr pVia, int hue, int saturation, int brightness, int 
 		      Bool reset);
 
 /* in via_overlay.c */
-unsigned long viaOverlayHQVCalcZoomHeight (VIAPtr pVia, unsigned long srcHeight,unsigned long dstHeight,
-                             unsigned long * lpzoomCtl, unsigned long * lpminiCtl, unsigned long * lpHQVfilterCtl, unsigned long * lpHQVminiCtl,unsigned long * lpHQVzoomflag);
-unsigned long viaOverlayGetSrcStartAddress (VIAPtr pVia, unsigned long dwVideoFlag,RECTL rSrc,RECTL rDest, unsigned long dwSrcPitch,LPDDPIXELFORMAT lpDPF,unsigned long * lpHQVoffset );
-void viaOverlayGetDisplayCount(VIAPtr pVIa, unsigned long dwVideoFlag,LPDDPIXELFORMAT lpDPF,unsigned long dwSrcWidth,unsigned long * lpDisplayCountW);
-unsigned long viaOverlayHQVCalcZoomWidth(VIAPtr pVia, unsigned long dwVideoFlag, unsigned long srcWidth , unsigned long dstWidth,
-                           unsigned long * lpzoomCtl, unsigned long * lpminiCtl, unsigned long * lpHQVfilterCtl, unsigned long * lpHQVminiCtl,unsigned long * lpHQVzoomflag);
-void viaOverlayGetV1Format(VIAPtr pVia, unsigned long dwVideoFlag,LPDDPIXELFORMAT lpDPF, unsigned long * lpdwVidCtl,unsigned long * lpdwHQVCtl );
-void viaOverlayGetV3Format(VIAPtr pVia, unsigned long dwVideoFlag,LPDDPIXELFORMAT lpDPF, unsigned long * lpdwVidCtl,unsigned long * lpdwHQVCtl );
+
+BOOL viaOverlayGetV1V3Format(VIAPtr pVia, int vport,
+                             unsigned long videoFlag, LPDDPIXELFORMAT pPF,
+                             unsigned long * pVidCtl, unsigned long * pHQVCtl);
+
+unsigned long viaOverlayGetSrcStartAddress(VIAPtr pVia, unsigned long videoFlag,
+                                           RECTL rSrc, RECTL rDest, unsigned long srcPitch,
+                                           LPDDPIXELFORMAT pPF,unsigned long * pHQVoffset);
+
+unsigned long viaOverlayHQVCalcZoomWidth(VIAPtr pVia,
+                                         unsigned long videoFlag,
+                                         unsigned long srcWidth,
+                                         unsigned long dstWidth,
+                                         unsigned long * pZoomCtl,
+                                         unsigned long * pMiniCtl,
+                                         unsigned long * pHQVfilterCtl,
+                                         unsigned long * pHQVminiCtl,
+                                         unsigned long * lpHQVzoomflag);
+
+unsigned long viaOverlayHQVCalcZoomHeight(VIAPtr pVia,
+                                          unsigned long srcHeight,
+                                          unsigned long dstHeight,
+                                          unsigned long * pZoomCtl,
+                                          unsigned long * pMiniCtl,
+                                          unsigned long * pHQVfilterCtl,
+                                          unsigned long * pHQVminiCtl,
+                                          unsigned long * pHQVzoomflag);
+
+void viaOverlayGetDisplayCount(VIAPtr pVia, unsigned long videoFlag, LPDDPIXELFORMAT pPF,
+                               unsigned long srcWidth, unsigned long * pDisplayCountW);
 
 void viaCalculateVideoColor(VIAPtr pVia, int hue, int saturation, 
-			    int brightness, int contrast,Bool reset,
-			    CARD32 *col1,CARD32 *col2);
+                            int brightness, int contrast,Bool reset,
+                            CARD32 *col1,CARD32 *col2);
 
 
 
@@ -427,26 +390,6 @@ void viaCalculateVideoColor(VIAPtr pVia, int hue, int saturation,
 void VIAFreeLinear(VIAMemPtr);
 unsigned long VIAAllocLinear(VIAMemPtr, ScrnInfoPtr, unsigned long);
 void VIAInitLinear(ScreenPtr pScreen);
-
-/* In via_tuner.c */
-void ViaTunerStandard(ViaTunerPtr, int);
-void ViaTunerBrightness(ViaTunerPtr, int);
-void ViaTunerContrast(ViaTunerPtr, int);
-void ViaTunerHue(ViaTunerPtr, int);
-void ViaTunerLuminance(ViaTunerPtr, int);
-void ViaTunerSaturation(ViaTunerPtr, int);
-void ViaTunerInput(ViaTunerPtr, int);
-#define MODE_TV		0
-#define MODE_SVIDEO	1
-#define MODE_COMPOSITE	2
-
-void ViaTunerChannel(ViaTunerPtr, int, int);
-void ViaAudioSelect(ScrnInfoPtr pScrn, int tuner);
-void ViaAudioInit(VIAPtr pVia);
-void ViaAudioMode(VIAPtr pVia, int mode);
-void ViaAudioMute(VIAPtr pVia, int mute);
-void ViaTunerProbe(ScrnInfoPtr pScrn);
-void ViaTunerDestroy(ScrnInfoPtr pScrn);
 
 /* In via_xwmc.c */
 
@@ -467,5 +410,7 @@ int viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute,
 
 #endif
 
+/* via_i2c.c */
+void ViaI2CInit(ScrnInfoPtr pScrn);
 
 #endif /* _VIA_DRIVER_H_ */
