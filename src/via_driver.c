@@ -1920,7 +1920,7 @@ static void VIAWriteMode(ScrnInfoPtr pScrn, vgaRegPtr vgaSavePtr,
     int             i;
     unsigned char   W_Buffer[3];
     I2CDevPtr       dev = NULL;
-    CARD8           tmp
+    CARD8           tmp;
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VIAWriteMode\n"));
     vgaIOBase = hwp->IOBase;
