@@ -649,7 +649,7 @@ VIAddc1(int scrnIndex)
     VGAOUT8(0x3c5, (tmp | 0x11));
 
     if ((pMon = xf86PrintEDID(
-        xf86DoEDID_DDC1(scrnIndex,LoaderSymbol("vgaHWddc1SetSpeed"),
+        xf86DoEDID_DDC1(scrnIndex,vgaHWddc1SetSpeedWeak(),
 	                VIAddc1Read))) != NULL)
         success = TRUE;
     xf86SetDDCproperties(pScrn,pMon);
