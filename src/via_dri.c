@@ -116,76 +116,80 @@ static void VIADRIIrqExit( ScrnInfoPtr pScrn , VIADRIPtr pVIADRI) {
     }
 }
 	    
-#ifdef ENABLE_AGP_RINGBUF
-
-static void VIADRIRingBufferCleanup(ScreenPtr pScreen, VIAPtr pVia)
+void
+VIADRIRingBufferCleanup(ScrnInfoPtr pScrn)
 {
-    DRIInfoPtr pDRIInfo = pVia->pDRIInfo;
-    VIADRIPtr pVIADRI = pDRIInfo->devPrivate;
-    drmViaDmaInit ringBufInit;
+    VIAPtr pVia = VIAPTR(pScrn);
+    VIADRIPtr pVIADRI = pVia->pDRIInfo->devPrivate;
 
     if (pVIADRI->ringBufActive) {
-	xf86DrvMsg(pScreen->myNum, X_INFO, 
+	drmViaDmaInit ringBufInit;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		   "[drm] Cleaning up DMA ring-buffer.\n");
 	ringBufInit.func = VIA_CLEANUP_DMA;
 	if (drmCommandWrite(pVia->drmFD, DRM_VIA_DMA_INIT, &ringBufInit,
 			    sizeof(ringBufInit))) {
-	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		       "[drm] Failed to clean up DMA ring-buffer: %d\n", errno);
 	}
 	pVIADRI->ringBufActive = 0;
     }
 }
 
-static Bool VIADRIRingBufferInit(ScreenPtr pScreen, VIAPtr pVia) 
+Bool
+VIADRIRingBufferInit(ScrnInfoPtr pScrn)
 {
-    DRIInfoPtr pDRIInfo = pVia->pDRIInfo;
-    VIADRIPtr pVIADRI = pDRIInfo->devPrivate;
-    drmViaDmaInit ringBufInit;
-    drmVersionPtr drmVer;
+    VIAPtr pVia = VIAPTR(pScrn);
+    VIADRIPtr pVIADRI = pVia->pDRIInfo->devPrivate;
 
-    pVIADRI->ringBufActive = 0;
+    if (pVIADRI->ringBufActive)
+	return TRUE;
 
-    if (NULL == (drmVer = drmGetVersion(pVia->drmFD))) {
-	return FALSE;
-    }
+    if (pVia->agpEnable) {
+	drmViaDmaInit ringBufInit;
+	drmVersionPtr drmVer;
 
-    if (((drmVer->version_major <= 1) && (drmVer->version_minor <= 3))) {
-	return FALSE;
-    } 
+	if (NULL == (drmVer = drmGetVersion(pVia->drmFD))) {
+	    return FALSE;
+	}
 
-    /*
-     * Info frome code-snippet on DRI-DEVEL list; Erdi Chen.
-     */
+	if (((drmVer->version_major <= 1) && (drmVer->version_minor <= 3))) {
+	    return FALSE;
+	} 
 
-    switch (pVia->ChipId) {
-    case PCI_CHIP_VT3259:
-	pVIADRI->reg_pause_addr = 0x40c;
-	break;
-    default:
-	pVIADRI->reg_pause_addr = 0x418;
-	break;
-    }
+	/*
+	 * Info frome code-snippet on DRI-DEVEL list; Erdi Chen.
+	 */
+
+	switch (pVia->ChipId) {
+	case PCI_CHIP_VT3259:
+	    pVIADRI->reg_pause_addr = 0x40c;
+	    break;
+	default:
+	    pVIADRI->reg_pause_addr = 0x418;
+	    break;
+	}
    
-    ringBufInit.offset = pVia->agpSize;
-    ringBufInit.size = AGP_CMDBUF_SIZE;
-    ringBufInit.reg_pause_addr = pVIADRI->reg_pause_addr;
-    ringBufInit.func = VIA_INIT_DMA;
-    if (drmCommandWrite(pVia->drmFD, DRM_VIA_DMA_INIT, &ringBufInit,
-			sizeof(ringBufInit))) {
-	xf86DrvMsg(pScreen->myNum, X_ERROR, 
-		   "[drm] Failed to initialize DMA ring-buffer: %d\n", errno);
-	return FALSE;
-    }
-    xf86DrvMsg(pScreen->myNum, X_INFO, 
-	       "[drm] Initialized AGP ring-buffer, size 0x%lx at AGP offset 0x%lx.\n",
-	       ringBufInit.size, ringBufInit.offset);
+	ringBufInit.offset = pVia->agpSize;
+	ringBufInit.size = AGP_CMDBUF_SIZE;
+	ringBufInit.reg_pause_addr = pVIADRI->reg_pause_addr;
+	ringBufInit.func = VIA_INIT_DMA;
+	if (drmCommandWrite(pVia->drmFD, DRM_VIA_DMA_INIT, &ringBufInit,
+			    sizeof(ringBufInit))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
+		       "[drm] Failed to initialize DMA ring-buffer: %d\n", errno);
+	    return FALSE;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		   "[drm] Initialized AGP ring-buffer, size 0x%lx at AGP offset 0x%lx.\n",
+		   ringBufInit.size, ringBufInit.offset);
    
-    pVIADRI->ringBufActive = 1;
+	pVIADRI->ringBufActive = 1;
+    }
     return TRUE;
 }	    
 
-#endif
 	
 static Bool VIADRIAgpInit(ScreenPtr pScreen, VIAPtr pVia)
 {
@@ -686,10 +690,7 @@ VIADRICloseScreen(ScreenPtr pScreen)
     VIAPtr pVia = VIAPTR(pScrn);
     VIADRIPtr pVIADRI;
 
-#ifdef ENABLE_AGP_RINGBUF
-    VIADRIRingBufferCleanup(pScreen, pVia); 
-#endif
-
+    VIADRIRingBufferCleanup(pScrn); 
     if (pVia->agpSize) {
 	drmUnmap(pVia->agpMappedAddr,pVia->agpSize);
 	drmRmMap(pVia->drmFD,pVia->agpHandle);
@@ -782,9 +783,7 @@ VIADRIFinishScreenInit(ScreenPtr pScreen)
 	VIADRIIrqInit(pScrn, pVIADRI);
     
     pVIADRI->ringBufActive = 0;
-#ifdef ENABLE_AGP_RINGBUF
-    VIADRIRingBufferInit(pScreen,pVia);
-#endif     
+    VIADRIRingBufferInit(pScrn);
     return TRUE;
 }
 
@@ -856,37 +855,3 @@ static Bool VIADRIMapInit(ScreenPtr pScreen, VIAPtr pVia)
 
     return TRUE;
 }
-
-
-void viaDRIEnterVT(int scrnIndex) 
-{
-  ScreenPtr pScreen = screenInfo.screens[scrnIndex];
-#ifdef ENABLE_AGP_RINGBUF
-  ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-  VIAPtr pVia = VIAPTR(pScrn);
-  DRIInfoPtr pDRIInfo = pVia->pDRIInfo;
-  VIADRIPtr pVIADRI = pDRIInfo->devPrivate;
-
-  if (!pVIADRI->ringBufActive)
-    VIADRIRingBufferInit(pScreen, pVia);
-#endif 
-
-  DRIUnlock( pScreen );
-}  
-
-void viaDRILeaveVT(int scrnIndex) 
-{
-  ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-  ScreenPtr pScreen = screenInfo.screens[scrnIndex];
-
-  DRILock(pScreen,0);
-  VIAAccelSync(pScrn);
-
-#ifdef ENABLE_AGP_RINGBUF
-  {
-    VIAPtr pVia = VIAPTR(pScrn);
-    VIADRIRingBufferCleanup(pScreen, pVia); 
-  }
-#endif 
-
-}  

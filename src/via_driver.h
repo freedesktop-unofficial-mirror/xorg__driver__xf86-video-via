@@ -304,8 +304,10 @@ typedef struct _VIA {
     ViaXvMC             xvmc;
 #endif
     Bool		DRIIrqEnable;
+    Bool                agpEnable;
+    Bool                dma2d;
 
-    unsigned char	ActiveDevice;	/* if SAMM, non-equal pBIOSInfo->ActiveDevice */
+    CARD8               ActiveDevice;	/* Option */
     unsigned char       *CursorImage;
     CARD32		CursorFG;
     CARD32		CursorBG;

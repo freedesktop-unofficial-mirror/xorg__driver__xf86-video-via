@@ -41,9 +41,7 @@
 
 #include "via_driver.h"
 #include "via_video.h"
-#include "videodev.h"
 
-#include "via_capture.h"
 #include "via.h"
 #ifdef XF86DRI
 #include "dri.h"
@@ -152,7 +150,9 @@ typedef enum {
     OPTION_CAP0_FIELDSWAP,
     OPTION_DRIXINERAMA,
     OPTION_DISABLEIRQ,
-    OPTION_TVDEFLICKER
+    OPTION_TVDEFLICKER,
+    OPTION_AGP_DMA,
+    OPTION_2D_DMA
 } VIAOpts;
 
 
@@ -187,6 +187,8 @@ static OptionInfoRec VIAOptions[] =
     {OPTION_CAP0_FIELDSWAP, "Cap0FieldSwap",    OPTV_BOOLEAN,  {0}, FALSE},
     {OPTION_DRIXINERAMA,  "DRIXINERAMA",    OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_DISABLEIRQ, "DisableIRQ", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_AGP_DMA, "EnableAGPDMA", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_2D_DMA, "NoAGPFor2D", OPTV_BOOLEAN, {0}, FALSE},
     {-1,                NULL,           OPTV_NONE,    {0}, FALSE}
 };
 
@@ -371,30 +373,6 @@ static pointer VIASetup(pointer module, pointer opts, int *errmaj, int *errmin)
 } /* VIASetup */
 
 #endif /* XFree86LOADER */
-
-
-/*
- * Used to be named WaitIdleCLE266
- * Across CLEXF releases this is used for all unichrome incarnations
- */
-void
-ViaWaitIdle(ScrnInfoPtr pScrn)
-{
-    VIAPtr pVia = VIAPTR(pScrn);
-    int loop = 0;
-
-    mem_barrier();
-
-    while (!(VIAGETREG(VIA_REG_STATUS) & VIA_VR_QUEUE_BUSY) && (loop++ < MAXLOOP))
-        ;
-
-    while ((VIAGETREG(VIA_REG_STATUS) &
-          (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY | VIA_3D_ENG_BUSY)) &&
-          (loop++ < MAXLOOP))
-        ;
-
-}
-
 
 static Bool VIAGetRec(ScrnInfoPtr pScrn)
 {
@@ -893,6 +871,25 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
         pVia->DRIIrqEnable = TRUE;
     }
 
+    if (xf86ReturnOptValBool(VIAOptions, OPTION_AGP_DMA, FALSE)) {
+        pVia->agpEnable = TRUE;
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+                   "Option: EnableAGPDMA - Enabling AGP DMA\n");
+    } else {
+	pVia->agpEnable = FALSE;
+    }
+
+    if (xf86ReturnOptValBool(VIAOptions, OPTION_2D_DMA, FALSE)) {
+        pVia->dma2d = FALSE;
+	if (pVia->agpEnable) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+		       "Option: NoAGPFor2D - AGP DMA is not used for 2D "
+		       "acceleration\n");
+	}
+    } else {
+        pVia->dma2d = TRUE;
+    }
+
     /* ActiveDevice Option for device selection */
     pBIOSInfo->ActiveDevice = 0x00;
     if ((s = xf86GetOptValString(VIAOptions, OPTION_ACTIVEDEVICE))) {
@@ -1349,6 +1346,19 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
      * don't exceed the chipset's limit if pScrn->maxHValue and
      * pScrn->maxVValue are set.  Since our VIAValidMode() already takes
      * care of this, we don't worry about setting them here.
+     *
+     * CLE266A:
+     *   Max Line Pitch: 4080, (FB corruption when higher, driver problem?)
+     *   Max Height: 4096 (and beyond)
+     *
+     * CLE266A: primary AdjustFrame only is able to use 24bits, so we are
+     * limited to 12x11bits; 4080x2048 (~2:1), 3344x2508 (4:3) or 2896x2896
+     * (1:1). 
+     * Test CLE266Cx, KM400, KM400A, K8M800, PM800, CN400 please.
+     *
+     * We should be able to limit the memory available for a mode to 32MB,
+     * yet xf86ValidateModes (or miScanLineWidth) fails to catch this properly
+     * (apertureSize).
      */
 
     /* Select valid modes from those available */
@@ -1358,13 +1368,13 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
                           clockRanges,              /* list of clock ranges */
                           NULL,                     /* list of line pitches */
                           256,                      /* mini line pitch */
-                          2048,                     /* max line pitch */
+			  3344,                     /* max line pitch */
                           16 * pScrn->bitsPerPixel, /* pitch inc (bits) */
                           128,                      /* min height */
-                          2048,                     /* max height */
+			  2508,                     /* max height */
                           pScrn->display->virtualX, /* virtual width */
-                          pScrn->display->virtualY, /* virutal height */
-                          pVia->videoRambytes,      /* size of video memory */
+			  pScrn->display->virtualY, /* virtual height */
+			  pVia->videoRambytes,      /* apertureSize */
                           LOOKUP_BEST_REFRESH);     /* lookup mode flags */
 
     if (i == -1) {
@@ -1473,7 +1483,6 @@ static Bool VIAEnterVT(int scrnIndex, int flags)
     Bool        ret;
 
     /* FIXME: Rebind AGP memory here */
-    /* FIXME: Unlock DRI here */
     DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "VIAEnterVT\n"));
     VIASave(pScrn);
     vgaHWUnlock(hwp);
@@ -1489,13 +1498,10 @@ static Bool VIAEnterVT(int scrnIndex, int flags)
         viaRestoreVideo(pScrn);
 
 #ifdef XF86DRI
-
-    /* 
-     * Reinitialize ringbuffer and release the
-     * hardware lock.
-     */
-
-    viaDRIEnterVT(scrnIndex);
+    if (pVia->directRenderingEnabled) {
+	VIADRIRingBufferInit(pScrn);
+	DRIUnlock(screenInfo.screens[scrnIndex]);
+    }
 #endif 
 
     VIAAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
@@ -1513,14 +1519,15 @@ static void VIALeaveVT(int scrnIndex, int flags)
     DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "VIALeaveVT\n"));
 
 #ifdef XF86DRI
+    if (pVia->directRenderingEnabled)
+	DRILock(screenInfo.screens[scrnIndex], 0);
+#endif
 
-    /* 
-     * Take the hardware lock, flush and disable the ringbuffer.
-     */
+    VIAAccelSync(pScrn);
 
-    viaDRILeaveVT(scrnIndex);
-#else
-    ViaWaitIdle(pScrn);
+#ifdef XF86DRI
+    if (pVia->directRenderingEnabled)
+	VIADRIRingBufferCleanup(pScrn); 
 #endif
 
     if (pVia->VQEnable)
@@ -2248,7 +2255,7 @@ static Bool VIACloseScreen(int scrnIndex, ScreenPtr pScreen)
     if(pScrn->vtSema)
     {
         /* Wait Hardware Engine idle to exit graphical mode */
-        ViaWaitIdle(pScrn);
+        VIAAccelSync(pScrn);
     
 	/* Patch for normal log out and restart X, 3D application will hang */
 	VIARestore(pScrn);
@@ -2267,9 +2274,8 @@ static Bool VIACloseScreen(int scrnIndex, ScreenPtr pScreen)
 	    ViaVQDisable(pScrn);
     }
 #ifdef XF86DRI
-    if (pVia->directRenderingEnabled) {
+    if (pVia->directRenderingEnabled)
 	VIADRICloseScreen(pScreen);
-    }
 #endif
     if (pVia->AccelInfoRec) {
         XAADestroyInfoRec(pVia->AccelInfoRec);
@@ -2402,34 +2408,31 @@ Bool VIASwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     VIAPtr      pVia = VIAPTR(pScrn);
     Bool        ret;
-
+    
     DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "VIASwitchMode\n"));
-    /* Wait Hardware Engine idle to switch graphicd mode */
-
+    
 #ifdef XF86DRI
-
-    /* 
-     * Take the hardware lock, flush and disable the ringbuffer.
-     */
-
-    viaDRILeaveVT(scrnIndex);
-#else
-    ViaWaitIdle(pScrn);
+    if (pVia->directRenderingEnabled)
+	DRILock(screenInfo.screens[scrnIndex], 0);
 #endif
-
+    
+    VIAAccelSync(pScrn);
+    
+#ifdef XF86DRI
+    if (pVia->directRenderingEnabled)
+	VIADRIRingBufferCleanup(pScrn); 
+#endif
+    
     if (pVia->VQEnable)
 	ViaVQDisable(pScrn);
-
-    ret = VIAWriteMode(xf86Screens[scrnIndex], mode);
+    
+    ret = VIAWriteMode(pScrn, mode);
 
 #ifdef XF86DRI
-
-    /* 
-     * Reinitialize ringbuffer and release the
-     * hardware lock.
-     */
-
-    viaDRIEnterVT(scrnIndex);
+    if (pVia->directRenderingEnabled) {
+	  VIADRIRingBufferInit(pScrn);
+	  DRIUnlock(screenInfo.screens[scrnIndex]);
+    }
 #endif 
     return ret;
     

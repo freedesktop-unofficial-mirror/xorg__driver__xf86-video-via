@@ -144,8 +144,8 @@ typedef struct {
 Bool VIADRIScreenInit(ScreenPtr pScreen);
 void VIADRICloseScreen(ScreenPtr pScreen);
 Bool VIADRIFinishScreenInit(ScreenPtr pScreen);
-void viaDRILeaveVT(int scrnIndex);
-void viaDRIEnterVT(int scrnIndex);
+void VIADRIRingBufferCleanup(ScrnInfoPtr pScrn);
+Bool VIADRIRingBufferInit(ScrnInfoPtr pScrn);
 
 
 

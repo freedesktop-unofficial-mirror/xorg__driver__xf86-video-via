@@ -442,9 +442,9 @@ static unsigned fastrdtsc(void)
 {
     unsigned eax;
     __asm__ volatile ("\t"
-		      "pushl %%ebx\n\t"
+                      "pushl  %%ebx\n\t"
 		      "cpuid\n\t"
-		      "rdtsc\n\t"
+		      ".byte 0x0f, 0x31\n\t"
 		      "popl %%ebx\n"
 		      : "=a" (eax)
 		      : "0"(0)
