@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.17 2003/12/17 18:57:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.25 2004/01/27 17:01:20 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -81,7 +81,6 @@ static void VIADisableMMIO(ScrnInfoPtr pScrn);
 static Bool VIAMapMMIO(ScrnInfoPtr pScrn);
 static Bool VIAMapFB(ScrnInfoPtr pScrn);
 static void VIAUnmapMem(ScrnInfoPtr pScrn);
-static int  VIAGetMemSize(void);
 Bool VIADeviceSelection(ScrnInfoPtr pScrn);
 Bool VIADeviceDispatch(ScrnInfoPtr pScrn);
 
@@ -447,6 +446,8 @@ static Bool VIAGetRec(ScrnInfoPtr pScrn)
     pScrn->driverPrivate = xnfcalloc(sizeof(VIARec), 1);
     ((VIARec *)(pScrn->driverPrivate))->pBIOSInfo =
         xnfcalloc(sizeof(VIABIOSInfoRec), 1);
+    ((VIARec *)(pScrn->driverPrivate))->pBIOSInfo->UserSetting =
+        xnfcalloc(sizeof(VIAUserSettingRec), 1);
     ((VIARec *)(pScrn->driverPrivate))->pBIOSInfo->pModeTable =
         xnfcalloc(sizeof(VIAModeTableRec), 1);
 
@@ -468,7 +469,9 @@ static void VIAFreeRec(ScrnInfoPtr pScrn)
         return;
 
     xfree(((VIARec *)(pScrn->driverPrivate))->pBIOSInfo->pModeTable);
+    xfree(((VIARec *)(pScrn->driverPrivate))->pBIOSInfo->UserSetting);
     xfree(((VIARec *)(pScrn->driverPrivate))->pBIOSInfo);
+    ViaTunerDestroy(pScrn);
     xfree(pScrn->driverPrivate);
     pScrn->driverPrivate = NULL;
 
@@ -1358,7 +1361,10 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
             pScrn->videoRam = bMemSize << 6;
         }
         else {
-            VGAOUT8(0x3C4, 0x34);	/* Was 0x39 */
+            if(pVia->Chipset == VIA_CLE266)
+                VGAOUT8(0x3C4, 0x34);
+            else
+            	VGAOUT8(0x3C4, 0x39);
             bMemSize = VGAIN8(0x3c5);
             if (bMemSize > 16 && bMemSize <= 128) {
                 pScrn->videoRam = (bMemSize + 1) << 9;
@@ -1369,7 +1375,7 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
             else {
                 DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "bMemSize = %d\nGet Video Memory Size by default.\n", bMemSize));
-                pScrn->videoRam = VIAGetMemSize();
+                pScrn->videoRam = 16 << 10;	/* Assume the base 16Mb */
             }
         }
     }
@@ -2203,6 +2209,24 @@ static Bool VIAMapFB(ScrnInfoPtr pScrn)
                pVia->FrameBufferBase, pVia->videoRambytes);
 
     if (pVia->videoRambytes) {
+
+	/*
+	 * FIXME: This is a hack to get rid of offending wrongly sized
+	 * MTRR regions set up by the VIA BIOS. Should be taken care of
+	 * in the OS support layer.
+	 */
+
+        unsigned char *tmp; 
+        tmp = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_MMIO,
+			    pVia->PciTag, pVia->FrameBufferBase,
+			    pVia->videoRambytes);
+        xf86UnMapVidMem(pScrn->scrnIndex, (pointer)tmp,
+                        pVia->videoRambytes);
+
+	/*
+	 * End of hack.
+	 */
+
         pVia->FBBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
                                      pVia->PciTag, pVia->FrameBufferBase,
                                      pVia->videoRambytes);
@@ -2343,8 +2367,33 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
     fbPictureInit(pScreen, 0, 0);
 #endif
 
-    if (!pVia->NoAccel)
+    if (!pVia->NoAccel) {
         VIAInitAccel(pScreen);
+    } 
+#ifdef XFREE_44
+    else {
+	/*
+	 * This is needed because xf86InitFBManagerLinear in VIAInitLinear
+	 * needs xf86InitFBManager to have been initialized, and 
+	 * xf86InitFBManager needs at least one line of free memory to
+	 * work. This is only for Xv in Noaccel part, and since Xv is in some
+	 * sense accelerated, it might be a better idea to disable it
+	 * altogether.
+	 */ 
+        BoxRec AvailFBArea;
+
+        AvailFBArea.x1 = 0;
+        AvailFBArea.y1 = 0;
+        AvailFBArea.x2 = pScrn->displayWidth;
+        AvailFBArea.y2 = pScrn->virtualY + 1;
+	/* 
+	 * Update FBFreeStart also for other memory managers, since 
+	 * we steal one line to make xf86InitFBManager work.
+	 */
+	pVia->FBFreeStart = (AvailFBArea.y2 + 1) * pVia->Bpl;
+	xf86InitFBManager(pScreen, &AvailFBArea);	
+    }
+#endif
 
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);
@@ -2423,16 +2472,17 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
     else {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering disabled\n");
     }
+    if (!pVia->directRenderingEnabled)
+	VIAInitLinear(pScreen);
+#else    
+    VIAInitLinear(pScreen);
 #endif
 
-    if (VIA_SERIES(pVia->Chipset) && !pVia->IsSecondary) {
+    
+    if (!pVia->IsSecondary) {
+        /* The chipset is checked in viaInitVideo */
         viaFillGraphicInfo(pScrn);
-        /* There is alas not enough bandwidth to do 1600x1200x16 with video overlay */
-/*        if(pScrn->bitsPerPixel * pScrn->virtualX *pScrn->virtualY  <= 1400 * 1050 * 16)  */
-        	viaInitVideo(pScreen);
-/*        else
-        	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "video overlay disabled (%dx%d@%d exceeds bandwidth)\n",
-        		pScrn->virtualX, pScrn->virtualY, pScrn->bitsPerPixel);*/
+       	viaInitVideo(pScreen);
     }
 
     if (serverGeneration == 1)
@@ -3084,14 +3134,6 @@ static void VIADPMS(ScrnInfoPtr pScrn, int mode, int flags)
     return;
 }
 
-
-int VIAGetMemSize()
-{
-    /* TODO: Do memory sizing  */
-
-    /* Default 16MB */
-    return (16 << 10);
-}
 
 /* Active Device according connected status */
 Bool VIADeviceSelection(ScrnInfoPtr pScrn)

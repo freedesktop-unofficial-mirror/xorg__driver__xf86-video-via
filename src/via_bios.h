@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_bios.h,v 1.3 2003/08/27 15:16:07 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_bios.h,v 1.4 2003/12/31 05:42:04 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -26,18 +26,18 @@
 #ifndef _VIA_BIOS_H_
 #define _VIA_BIOS_H_ 1
 
-#define     VIA_CRT_SUPPORT               TRUE
-#define     VIA_LCD_SUPPORT               TRUE
-#define     VIA_UNCOVERD_LCD_PANEL        FALSE
-#define     VIA_NTSC_SUPPORT              TRUE
-#define     VIA_PAL_SUPPORT               TRUE
-#define     VIA_DVI_SUPPORT               TRUE
+#define     VIA_CRT_SUPPORT                 TRUE
+#define     VIA_LCD_SUPPORT                 TRUE
+#define     VIA_UNCOVERD_LCD_PANEL          FALSE
+#define     VIA_NTSC_SUPPORT                TRUE
+#define     VIA_PAL_SUPPORT                 TRUE
+#define     VIA_DVI_SUPPORT                 TRUE
 
-#define     VIA_CRT_SUPPORT_BIT           0x01
-#define     VIA_LCD_SUPPORT_BIT           0x02
-#define     VIA_NTSC_SUPPORT_BIT          0x04
-#define     VIA_PAL_SUPPORT_BIT           0x08
-#define     VIA_DVI_SUPPORT_BIT           0x20
+#define     VIA_CRT_SUPPORT_BIT             0x01
+#define     VIA_LCD_SUPPORT_BIT             0x02
+#define     VIA_NTSC_SUPPORT_BIT            0x04
+#define     VIA_PAL_SUPPORT_BIT             0x08
+#define     VIA_DVI_SUPPORT_BIT		    0x20
 
 #define     VIA_BIOS_REG_TABLE_MAX_NUM      32
 #define     VIA_BIOS_REG_LCD_MAX_NUM        48
@@ -51,16 +51,16 @@
 #define     VIA_BIOS_MAX_NUM_CTREXP         5
 #define     VIA_BIOS_MAX_NUM_TV_REG         144		/* 00 - 8F, tv2,tv3,ch7019 are the same */
 #define     VIA_BIOS_MAX_NUM_SAA7108_TV_REG 176		/* 00 - AF */
-#define     VIA_BIOS_NUM_FS454_TV_REG   	32		/* Nums of TV Register in setmode needs */
+#define     VIA_BIOS_NUM_FS454_TV_REG       32		/* Nums of TV Register in setmode needs */
 #define     VIA_BIOS_MAX_NUM_TV_CRTC        32
 #define     VIA_BIOS_NUM_TV_SPECIAL_REG     8
 #define     VIA_BIOS_MAX_NUM_TV_PATCH       8
 #define     VIA_BIOS_NUM_TV_OTHER           16
 #define     VIA_BIOS_NUM_TV2                2
 #define     VIA_BIOS_NUM_TV3                6
-#define     VIA_BIOS_NUM_SAA7108			4
-#define     VIA_BIOS_NUM_CH7019				3
-#define     VIA_BIOS_NUM_FS454				5
+#define     VIA_BIOS_NUM_SAA7108	    4
+#define     VIA_BIOS_NUM_CH7019		    3
+#define     VIA_BIOS_NUM_FS454		    5
 
 
 /* The position of some BIOS information from start of BIOS */
@@ -104,7 +104,7 @@
 #define     VIA_RES_720X576                 13
 #define     VIA_RES_1024X512                14
 #define     VIA_RES_856X480                 15
-#define		VIA_RES_1024X576				16
+#define     VIA_RES_1024X576		    16
 #define     VIA_RES_INVALID                 255
 
 #define     VIA_TVRES_640X480               0
@@ -168,24 +168,24 @@
 #define     VIA_TV_NUM_HSCALE_LEVEL         8
 #define     VIA_TV_NUM_HSCALE_REG           16
 
-#define		VIA_DEVICE_CRT1					0x01
-#define		VIA_DEVICE_LCD					0x02
-#define		VIA_DEVICE_TV					0x04
-#define		VIA_DEVICE_DFP					0x08
-#define		VIA_DEVICE_CRT2					0x10
+#define	    VIA_DEVICE_CRT1		    0x01
+#define	    VIA_DEVICE_LCD		    0x02
+#define	    VIA_DEVICE_TV		    0x04
+#define	    VIA_DEVICE_DFP		    0x08
+#define	    VIA_DEVICE_CRT2		    0x10
 
 /* System Memory CLK */
-#define		VIA_MEM_SDR66					0x00
-#define		VIA_MEM_SDR100					0x01
-#define		VIA_MEM_SDR133					0x02
-#define		VIA_MEM_DDR200					0x03
-#define		VIA_MEM_DDR266					0x04
-#define		VIA_MEM_DDR333					0x05
-#define		VIA_MEM_DDR400					0x06
+#define	    VIA_MEM_SDR66		    0x00
+#define	    VIA_MEM_SDR100		    0x01
+#define	    VIA_MEM_SDR133		    0x02
+#define	    VIA_MEM_DDR200		    0x03
+#define	    VIA_MEM_DDR266		    0x04
+#define	    VIA_MEM_DDR333		    0x05
+#define	    VIA_MEM_DDR400		    0x06
 
 /* Digital Output Bus Width */
-#define		VIA_DI_12BIT					0x00
-#define		VIA_DI_24BIT					0x01
+#define	    VIA_DI_12BIT		    0x00
+#define	    VIA_DI_24BIT		    0x01
 
 #define     CAP_WEAVE                       0x0
 #define     CAP_BOB                         0x1
@@ -473,36 +473,35 @@ typedef struct _VIAVMODETABLE {
     VIABIOSTV3TableRec      tv3OverTable[VIA_BIOS_NUM_TV3];
     VIABIOSTV3TableRec      vt1622aTable[VIA_BIOS_NUM_TV3];
     VIABIOSTV3TableRec      vt1622aOverTable[VIA_BIOS_NUM_TV3];
-	VIABIOSSAA7108TableRec		saa7108Table[VIA_BIOS_NUM_SAA7108];
-	VIABIOSSAA7108TableRec		saa7108OverTable[VIA_BIOS_NUM_SAA7108];
-	VIABIOSCH7019TableRec	ch7019Table[VIA_BIOS_NUM_CH7019];
-	VIABIOSCH7019TableRec	ch7019OverTable[VIA_BIOS_NUM_CH7019];
-	VIABIOSFS454TableRec	fs454Table[VIA_BIOS_NUM_FS454];
-	VIABIOSFS454TableRec	fs454OverTable[VIA_BIOS_NUM_FS454];
+    VIABIOSSAA7108TableRec  saa7108Table[VIA_BIOS_NUM_SAA7108];
+    VIABIOSSAA7108TableRec  saa7108OverTable[VIA_BIOS_NUM_SAA7108];
+    VIABIOSCH7019TableRec   ch7019Table[VIA_BIOS_NUM_CH7019];
+    VIABIOSCH7019TableRec   ch7019OverTable[VIA_BIOS_NUM_CH7019];
+    VIABIOSFS454TableRec    fs454Table[VIA_BIOS_NUM_FS454];
+    VIABIOSFS454TableRec    fs454OverTable[VIA_BIOS_NUM_FS454];
 } VIAModeTableRec, *VIAModeTablePtr;
 
-typedef struct _UTUSERSETTING
+typedef struct _VIAUserSettingRec
 {
     Bool            DefaultSetting;
-    Bool            ADAPTIVE_FFILTER_ON;
-    unsigned long   UT_TV_VPOSITION;
-    unsigned long   UT_TV_HPOSITION;
-    unsigned long   UT_TV_FFILTER;
-    unsigned long   UT_TV_ADAPTIVE_FFILTER;
-    unsigned long   UT_TV_BRIGHTNESS;
-    unsigned long   UT_TV_CONTRAST;
-    unsigned long   UT_TV_SATURATION;
-    unsigned long   UT_TV_TINT;
-} UTUSERSETTING, *UTUSERSETTINGptr;
+    Bool            AdaptiveFilterOn;
+    unsigned long   tvVPosition;
+    unsigned long   tvHPosition;
+    unsigned long   tvFFilter;
+    unsigned long   tvAdaptiveFFilter;
+    unsigned long   tvBrightness;
+    unsigned long   tvContrast;
+    unsigned long   tvSaturation;
+    unsigned long   tvTint;
+} VIAUserSettingRec, *VIAUserSettingPtr;
 
 typedef struct _VIABIOSINFO {
-
     VIAModeTablePtr     pModeTable;
 
     int                 Chipset;
     int                 ChipRev;
-    unsigned char		TMDS;
-    unsigned char		LVDS;
+    unsigned char	TMDS;
+    unsigned char	LVDS;
     /*int                 DVIEncoder;*/
     int                 TVEncoder;
     int                 BIOSTVTabVer;
@@ -511,32 +510,32 @@ typedef struct _VIABIOSINFO {
     Bool                FirstInit;
     unsigned char*      FBBase;
     unsigned long       videoRambytes;
-    unsigned char		MemClk;
+    unsigned char	MemClk;
     int                 scrnIndex;
 
     unsigned int        mode, refresh, resMode;
     int                 countWidthByQWord;
     int                 offsetWidthByQWord;
 
-    unsigned char		ConnectedDevice;
-    unsigned char		ActiveDevice;
-    unsigned char		DefaultActiveDevice;
+    unsigned char	ConnectedDevice;
+    unsigned char	ActiveDevice;
+    unsigned char	DefaultActiveDevice;
 
     /* Here are all the BIOS Relative Options */
     int                 BIOSMajorVersion;
     int                 BIOSMinorVersion;
-    unsigned char		BIOSDateYear;
-    unsigned char		BIOSDateMonth;
-    unsigned char		BIOSDateDay;
+    unsigned char	BIOSDateYear;
+    unsigned char	BIOSDateMonth;
+    unsigned char	BIOSDateDay;
     Bool                A2;
     Bool                UseBIOS;
-	Bool				LCDDualEdge;	/* mean add-on card is 2CH or Dual or DDR */
+    Bool		LCDDualEdge;	/* mean add-on card is 2CH or Dual or DDR */
     Bool                DVIAttach;
     Bool                LCDAttach;
     Bool                Center;
     Bool                TVAttach;
     Bool                TVDotCrawl;
-	unsigned char		BusWidth;		/* Digital Output Bus Width */
+    unsigned char	BusWidth;		/* Digital Output Bus Width */
     int                 PanelSize;
     int                 TVType;
     int                 TVOutput;
@@ -581,21 +580,20 @@ typedef struct _VIABIOSINFO {
     xf86MonPtr          DDC2;
     I2CDevPtr           dev;
 
-	unsigned int		resTVMode;
-	unsigned char		TVI2CAdd;
+    unsigned int	resTVMode;
+    unsigned char	TVI2CAdd;
     unsigned char       TVRegs[0xFF];
 
     /* MHS */
-    Bool				SAMM;			/* SAMM success or not? */
+    Bool		SAMM;			/* SAMM success or not? */
     Bool                IsSecondary;
     Bool                HasSecondary;
     Bool                SetTV;
     Bool                SetDVI;
 
     /* Utility User Setting */
-    UTUSERSETTINGptr    pUTUSERSETTING;
+    VIAUserSettingPtr   UserSetting;
     LOCO            	colors[256];    /* Gamma value. LOCO typedef in colormapst.h */
-
 } VIABIOSInfoRec, *VIABIOSInfoPtr;
 
 /* Functions protype */
