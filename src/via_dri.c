@@ -328,7 +328,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 	    break;
 	case 16:
 	case 32:
-	    numConfigs = 8;
+	    numConfigs = 16;
 	    if (!(pConfigs = (__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),
 						   numConfigs)))
 		return FALSE;
@@ -348,7 +348,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 
 	    i = 0;
 	    for (accum = 0; accum <= 1; accum++) {
-    		for (stencil=0; stencil<=1; stencil++) {
+    		for (stencil=0; stencil<=3; stencil++) {
     		    for (db = 0; db <= 1; db++) {
         		pConfigs[i].vid = -1;
         		pConfigs[i].class = -1;
@@ -403,7 +403,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 			pConfigs[i].auxBuffers = 0;
         		pConfigs[i].level = 0;
         		pConfigs[i].visualRating = GLX_NONE_EXT;
-        		pConfigs[i].transparentPixel = 0;
+        		pConfigs[i].transparentPixel = GLX_NONE_EXT;
         		pConfigs[i].transparentRed = 0;
         		pConfigs[i].transparentGreen = 0;
         		pConfigs[i].transparentBlue = 0;

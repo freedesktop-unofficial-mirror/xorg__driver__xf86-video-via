@@ -1984,6 +1984,10 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
             return FALSE;
     }
 
+#ifdef XF86DRI
+    pVia->directRenderingEnabled = VIADRIScreenInit(pScreen);
+#endif
+
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "- Visuals set up\n"));
 
     if (!VIAInternalScreenInit(scrnIndex, pScreen))
@@ -2102,8 +2106,6 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "- Color maps etc. set up\n"));
 
 #ifdef XF86DRI
-    pVia->directRenderingEnabled = VIADRIScreenInit(pScreen);
-
     if (pVia->directRenderingEnabled) {
     pVia->directRenderingEnabled = VIADRIFinishScreenInit(pScreen);
     }
