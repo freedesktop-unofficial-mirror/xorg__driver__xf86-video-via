@@ -45,14 +45,7 @@
 #include "mipointer.h"
 #include "micmap.h"
 
-#define USE_FB
-#ifdef USE_FB
 #include "fb.h"
-#else
-#include "cfb.h"
-#include "cfb16.h"
-#include "cfb32.h"
-#endif
 
 #include "xf86cmap.h"
 #include "vbe.h"

@@ -265,24 +265,11 @@ static const char *shadowSymbols[] = {
     NULL
 };
 
-#ifdef USE_FB
 static const char *fbSymbols[] = {
     "fbScreenInit",
     "fbPictureInit",
     NULL
 };
-#else
-static const char *cfbSymbols[] = {
-    "cfbScreenInit",
-    "cfb16ScreenInit",
-    "cfb24ScreenInit",
-    "cfb24_32ScreenInit",
-    "cfb32ScreenInit",
-    "cfb16BresS",
-    "cfb24BresS",
-    NULL
-};
-#endif
 
 #ifdef XFree86LOADER
 #ifdef XF86DRI
@@ -355,11 +342,7 @@ static pointer VIASetup(pointer module, pointer opts, int *errmaj, int *errmin)
         setupDone = TRUE;
         xf86AddDriver(&VIA, module, 0);
         LoaderRefSymLists(vgaHWSymbols,
-#ifdef USE_FB
                           fbSymbols,
-#else
-                          cfbSymbols,
-#endif
                           ramdacSymbols,
                           xaaSymbols,
                           shadowSymbols,
@@ -704,10 +687,6 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
     MessageType     from = X_DEFAULT;
     ClockRangePtr   clockRanges;
     char            *s = NULL;
-#ifndef USE_FB
-    char            *mod = NULL;
-    const char      *reqSym = NULL;
-#endif
     vgaHWPtr        hwp;
     int             i, bMemSize = 0, tmp;
 
@@ -1545,38 +1524,12 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
     xf86PrintModes(pScrn);
     xf86SetDpi(pScrn, 0, 0);
 
-#ifdef USE_FB
     if (xf86LoadSubModule(pScrn, "fb") == NULL) {
         VIAFreeRec(pScrn);
         return FALSE;
     }
 
     xf86LoaderReqSymLists(fbSymbols, NULL);
-
-#else
-    /* load bpp-specific modules */
-    switch (pScrn->bitsPerPixel) {
-        case 8:
-            mod = "cfb";
-            reqSym = "cfbScreenInit";
-            break;
-        case 16:
-            mod = "cfb16";
-            reqSym = "cfb16ScreenInit";
-            break;
-        case 32:
-            mod = "cfb32";
-            reqSym = "cfb32ScreenInit";
-            break;
-    }
-
-    if (mod && xf86LoadSubModule(pScrn, mod) == NULL) {
-        VIAFreeRec(pScrn);
-        return FALSE;
-    }
-
-    xf86LoaderReqSymbols(reqSym, NULL);
-#endif
 
     if (!pVia->NoAccel) {
         if(!xf86LoadSubModule(pScrn, "xaa")) {
@@ -2364,10 +2317,8 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
-#ifdef USE_FB
     /* must be after RGB ordering fixed */
     fbPictureInit(pScreen, 0, 0);
-#endif
 
     if (!pVia->NoAccel) {
         VIAInitAccel(pScreen);
@@ -2529,35 +2480,9 @@ static int VIAInternalScreenInit(int scrnIndex, ScreenPtr pScreen)
         FBStart = pVia->FBStart;
     }
 
-#ifdef USE_FB
     ret = fbScreenInit(pScreen, FBStart, width, height,
                        pScrn->xDpi, pScrn->yDpi, displayWidth,
                        pScrn->bitsPerPixel);
-#else
-    switch (pScrn->bitsPerPixel) {
-    case 8:
-        ret = cfbScreenInit(pScreen, FBStart, width, height, pScrn->xDpi,
-                            pScrn->yDpi, displayWidth);
-        break;
-
-    case 16:
-        ret = cfb16ScreenInit(pScreen, FBStart, width, height, pScrn->xDpi,
-                              pScrn->yDpi, displayWidth);
-        break;
-
-    case 32:
-        ret = cfb32ScreenInit(pScreen, FBStart, width, height, pScrn->xDpi,
-                              pScrn->yDpi, displayWidth);
-        break;
-
-    default:
-        xf86DrvMsg(scrnIndex, X_ERROR,
-                   "Internal error: invalid bpp (%d) in SavageScreenInit\n",
-                   pScrn->bitsPerPixel);
-        ret = FALSE;
-        break;
-    }
-#endif
 
     return ret;
 }
