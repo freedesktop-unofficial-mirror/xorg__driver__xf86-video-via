@@ -1,4 +1,4 @@
-/* $XFree86$ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_xvpriv.h,v 1.5 2003/08/27 15:16:14 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -26,12 +26,14 @@
 #ifndef _VIA_XVPRIV_H_
 #define _VIA_XVPRIV_H_ 1
 
+#include "xf86xv.h"
 #include "videodev.h"
 
 #define   XV_PORT_NUM       5
 #define   XV_SWOV_PORTID    0
 #define   XV_TV0_PORTID     1
 #define   XV_TV1_PORTID     2
+/* UTCTRL is deprecated */
 #define   XV_UTCTRL_PORTID  3
 #define   XV_DUMMY_PORTID   4
 
@@ -43,10 +45,10 @@
 
 typedef struct {
     unsigned char  xv_portnum;
-    unsigned char  brightness;
-    unsigned char  saturation;
-    unsigned char  contrast;
-    unsigned char  hue;
+  int  brightness;
+  int  saturation;
+  int  contrast;
+  int  hue;
     unsigned long  dwEncoding;
     RegionRec      clip;
     CARD32         colorKey;
@@ -55,6 +57,7 @@ typedef struct {
     VIACapRec      CapInfo;
     CARD32	   AudioMode;
     int		   Volume;
+  Bool           autoPaint;
 
     /* Surface structure */
     DDSURFACEDESC SurfaceDesc;
@@ -62,11 +65,8 @@ typedef struct {
 
     /* file handle */
     int 			nr;
-    struct video_capability     cap;
 
     /* attributes */
-    struct video_picture    	pict;
-    struct video_audio          audio;
 
     int                         *input;
     int                         *norm;
@@ -84,7 +84,10 @@ typedef struct {
     short old_drw_w;
     short old_drw_h;
 
+    void *xvmc_priv;
+
 } viaPortPrivRec, *viaPortPrivPtr;
+
 
 #if 0
 __inline void AllocatePortPriv();

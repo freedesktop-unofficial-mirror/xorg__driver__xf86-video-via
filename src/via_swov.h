@@ -1,4 +1,4 @@
-/* $XFree86$ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_swov.h,v 1.4 2003/08/27 15:16:13 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -34,21 +34,48 @@
 # define DBG_DD(x)
 #endif
 
-#include "ddmpeg.h"
+#include "via_priv.h"
 #include "via_xvpriv.h"
 
 /* Definition for VideoStatus */
 #define VIDEO_NULL              0x00000000
- 
+
+/*For Video HW Difference */
+#define VID_HWDIFF_TRUE           0x00000001
+#define VID_HWDIFF_FALSE          0x00000000
+
+/*
+ *	Video HW Difference Structure
+ */
+typedef struct __VIAHWDiff
+{
+    unsigned long dwThreeHQVBuffer;	         /* Use Three HQV Buffers*/
+    /* unsigned long dwV3SrcHeightSetting;*/	 /* Set Video Source Width and Height*/
+    /* unsigned long dwSupportExtendFIFO;*/	 /* Support Extand FIFO*/
+    unsigned long dwHQVFetchByteUnit;	         /* HQV Fetch Count unit is byte*/
+    unsigned long dwHQVInitPatch;	         /* Initialize HQV Engine 2 times*/
+    /*unsigned long dwSupportV3Gamma;*/	         /* Support V3 Gamma */
+    /*unsigned long dwUpdFlip;*/		 /* Set HQV3D0[15] to flip video*/
+    unsigned long dwHQVDisablePatch;	         /* Change Video Engine Clock setting for HQV disable bug*/
+    /*unsigned long dwSUBFlip;*/		 /* Set HQV3D0[15] to flip video for sub-picture blending*/
+    /*unsigned long dwNeedV3Prefetch;*/	         /* V3 pre-fetch function for K8*/
+    /*unsigned long dwNeedV4Prefetch;*/	         /* V4 pre-fetch function for K8*/
+    /*unsigned long dwUseSystemMemory;*/	 /* Use system memory for DXVA compressed data buffers*/
+    /*unsigned long dwExpandVerPatch;*/          /* Patch video HW bug in expand SIM mode or same display path*/
+    /*unsigned long dwExpandVerHorPatch;*/	 /* Patch video HW bug in expand SAMM mode or same display path*/
+    /*unsigned long dwV3ExpireNumTune;*/ 	 /* Change V3 expire number setting for V3 bandwidth issue*/
+    /*unsigned long dwV3FIFOThresholdTune;*/     /* Change V3 FIFO, Threshold and Pre-threshold setting for V3 bandwidth issue*/
+    /*unsigned long dwCheckHQVFIFOEmpty;*/       /* HW Flip path, need to check HQV FIFO status */
+    /*unsigned long dwUseMPEGAGP;*/              /* Use MPEG AGP function*/
+    /*unsigned long dwV3FIFOPatch;*/             /* For CLE V3 FIFO Bug (srcWidth <= 8)*/
+    unsigned long dwSupportTwoColorKey;          /* Support two color key*/
+    /* unsigned long dwCxColorSpace; */          /* CLE_Cx ColorSpace*/
+} VIAHWDiff;
+
+void VIAVidHWDiffInit(ScrnInfoPtr pScrn); 
 unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurfaceDesc);
 unsigned long VIAVidLockSurface(ScrnInfoPtr pScrn, LPDDLOCK lpLock);
 unsigned long VIAVidDestroySurface(ScrnInfoPtr pScrn,  LPDDSURFACEDESC lpDDSurfaceDesc);
-
-unsigned long Upd_MPEG(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsigned long dwStartAddr,RECTL rSrc,RECTL rDest,unsigned long dwSrcPitch,
-                 unsigned long dwOriSrcWidth,unsigned long dwOriSrcHeight,LPDDPIXELFORMAT lpDPFsrc,
-                 unsigned long dwDeinterlaceMode,unsigned long dwColorKey,unsigned long dwChromaKey,
-                 unsigned long dwKeyLow,unsigned long dwKeyHigh,unsigned long dwChromaLow,unsigned long dwChromaHigh);
-
 unsigned long VIAVidUpdateOverlay(ScrnInfoPtr pScrn, LPDDUPDATEOVERLAY lpUpdate);
 unsigned long VIAVidAdjustFrame(ScrnInfoPtr pScr, LPADJUSTFRAME lpAdjustFrame);
 

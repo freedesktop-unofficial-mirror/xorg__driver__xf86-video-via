@@ -1,4 +1,4 @@
-/* $XFree86$ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_video.h,v 1.3 2003/08/27 15:16:14 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -30,7 +30,7 @@
  * I N C L U D E S
  */
 
-/* #define   XV_DEBUG      1 */   /* write log msg to /var/log/XFree86.0.log */
+/* #define   XV_DEBUG      1 */    /* write log msg to /var/log/XFree86.0.log */
 #define   COLOR_KEY       1    /* set color key value from driver layer*/
 
 #ifdef XV_DEBUG
@@ -65,7 +65,13 @@ typedef struct {
 #define SDR133  2
 #define DDR100  3
 #define DDR133  4
+#define DDR166  5
+#define DDR200  6
 
+#define SINGLE_3205_100 0.41
+#define SINGLE_3205_133 0.70
+
+#define VIDEO_BPP 2
 
 typedef struct{ 
       unsigned long interruptflag;         /* 200 */

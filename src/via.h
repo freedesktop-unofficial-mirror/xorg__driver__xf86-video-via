@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via.h,v 1.4 2003/08/27 15:16:06 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via.h,v 1.5 2004/01/05 00:34:17 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -323,6 +323,7 @@
 #define V3_FIFO_THRESHOLD12     0x00000C00
 #define V3_FIFO_THRESHOLD16     0x00001000
 #define V3_FIFO_THRESHOLD24     0x00001800
+#define V3_FIFO_THRESHOLD29     0x00001D00
 #define V3_FIFO_THRESHOLD32     0x00002000
 #define V3_FIFO_THRESHOLD40     0x00002800  
 #define V3_FIFO_THRESHOLD48     0x00003000   
@@ -347,6 +348,8 @@
 
 #define ColorSpaceValue_1_3123C0      0x13000DED
 #define ColorSpaceValue_2_3123C0      0x13171000
+#define ColorSpaceValue_1_32045       0x13000DED
+#define ColorSpaceValue_2_32045       0x13171000
 
 /* For TV setting */
 #define ColorSpaceValue_1TV     0x140020f2
@@ -443,7 +446,9 @@
 #define V3_RGB16                0x0000000C
 #define V3_COLORSPACE_SIGN      0x00000080
 #define V3_EXPIRE_NUM           0x00040000
-#define V3_EXPIRE_NUM_F         0x000f0000 
+#define V3_EXPIRE_NUM_F         0x000f0000
+#define V3_EXPIRE_NUM_3204      0x00100000
+#define V3_EXPIRE_NUM_3205      0x00080000 
 #define V3_BOB_ENABLE           0x00400000
 #define V3_FIELD_BASE           0x00000000
 #define V3_FRAME_BASE           0x01000000
@@ -563,8 +568,8 @@
 #define VIDOutB(port, data)     *((volatile CARD8 *)(pVia->VidMapBase + (port))) = (data)
 #define VIDOutW(port, data)     *((volatile CARD16 *)(pVia->VidMapBase + (port))) = (data)
 #define VIDOutD(port, data)     *((volatile CARD32 *)(pVia->VidMapBase + (port))) = (data)
-#define MPGOutD(port, data)     *((volatile CARD32 *)(lpMPEGMMIO +(port))) = (data)
-#define MPGInD(port)            *((volatile CARD32 *)(lpMPEGMMIO +(port)))
+#define MPGOutD(port, data)     *((volatile CARD32 *)(pVia->MpegMapBase +(port))) = (data)
+#define MPGInD(port)            *((volatile CARD32 *)(pVia->MpegMapBase +(port)))
 #endif 
 
 /*

@@ -1,5 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_bandwidth.c,v 1.2 2003/08/27 15:16:06 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_bandwidth.c,v 1.3 2004/01/05 00:34:17 dawes Exp $ */
 /*
+ * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
@@ -23,363 +24,366 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "via_driver.h"
-#include "via_bandwidth.h"
+#include "via_vgahw.h"
+#include "via_id.h"
 
-void VIADisabledExtendedFIFO(VIABIOSInfoPtr pBIOSInfo)
+/*
+ * Now that via_bios is no longer such a behemoth and the relevant
+ * code is moved via_mode.c, this code should be moved to via_mode.c too
+ * especially as output abstraction will trim via_mode.c down further
+ */
+
+/*
+ *
+ */
+static void
+ViaSetCLE266APrimaryFIFO(ScrnInfoPtr pScrn, Bool Enable)
 {
-    VIABIOSInfoPtr  pVia = pBIOSInfo;
+    
+    VIAPtr pVia = VIAPTR(pScrn);
     CARD32  dwGE230, dwGE298;
+    
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetCLE266APrimaryFIFO: %d\n", Enable));
+    
+    dwGE298 = VIAGETREG(0x298);
+    VIASETREG(0x298, dwGE298 | 0x20000000);
+    
+    dwGE230 = VIAGETREG(0x230);
+    if (Enable)
+	dwGE230 |= 0x00200000;
+    else
+	dwGE230 &= ~0x00200000;
+    VIASETREG(0x230, dwGE230);
+    
+    dwGE298 = VIAGETREG(0x298);
+    VIASETREG(0x298, dwGE298 & ~0x20000000);
+}
 
-    DEBUG(xf86DrvMsg(pBIOSInfo->scrnIndex, X_INFO, "VIADisabledExtendedFIFO\n"));
+/*
+ * 
+ */
+typedef struct {
+    CARD16   X;
+    CARD16   Y;
+    CARD16   Bpp;
+    CARD8    bRamClock;
+    CARD8    bTuningValue;
+} ViaExpireNumberTable;
+
+static ViaExpireNumberTable CLE266AExpireNumber[] = {
+    {1280, 768,32,0x03,0x3}, {1280,1024,32,0x03,0x4}, {1280,1024,32,0x04,0x3},
+    {1600,1200,16,0x03,0x4}, {1600,1200,32,0x04,0x4}, {1024, 768,32,0x03,0xA},
+    {1400,1050,16,0x03,0x3}, {1400,1050,32,0x03,0x4}, {1400,1050,32,0x04,0x4},
+    { 800, 600,32,0x03,0xA}, {   0,   0, 0,   0,  0}
+};
+
+static ViaExpireNumberTable CLE266CExpireNumber[] = {
+    {1280, 768,32,0x03,0x3}, {1280,1024,32,0x03,0x4}, {1280,1024,32,0x04,0x4},
+    {1600,1200,32,0x03,0x3}, {1600,1200,32,0x04,0x4}, {1024, 768,32,0x03,0xA},
+    {1400,1050,32,0x03,0x4}, {1400,1050,32,0x04,0x4},
+    { 800, 600,32,0x03,0xA}, {   0,   0, 0,   0,  0}
+};
+
+static ViaExpireNumberTable KM400ExpireNumber[]={
+    {1280,1024,32,0x03,0x3}, {1280,1024,32,0x04,0x9}, {1280, 768,32,0x03,0x3},
+    {1280, 768,32,0x04,0x9}, {1400,1050,32,0x03,0x3}, {1400,1050,32,0x04,0x9},
+    {1600,1200,32,0x03,0x4}, {1600,1200,32,0x04,0xA}, {   0,   0, 0,   0,  0}
+};
+
+/*
+ *
+ */
+static void 
+ViaSetPrimaryExpireNumber(ScrnInfoPtr pScrn, DisplayModePtr mode, ViaExpireNumberTable *Expire)
+{
+    vgaHWPtr hwp = VGAHWPTR(pScrn);
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetPrimaryExpireNumber\n"));
+
+    for (; Expire->X; Expire++)
+        if ((Expire->X == mode->CrtcHDisplay) &&
+            (Expire->Y == mode->CrtcVDisplay) &&
+            (Expire->Bpp == pScrn->bitsPerPixel) &&
+            (Expire->bRamClock == pVia->MemClk)) {
+	    ViaSeqChange(hwp, 0x22, Expire->bTuningValue, 0x1F);
+	    return;
+	}
+}
+
+/*
+ * original via comments:
+ * Enable Refresh to avoid data lose when enter screen saver
+ * Refresh disable & 128-bit alignment
+ *
+ */
+static void 
+ViaSetPrimaryFetchCount(ScrnInfoPtr pScrn, int width)
+{
+    vgaHWPtr hwp = VGAHWPTR(pScrn);
+    CARD16 Count = (width * (pScrn->bitsPerPixel >> 3)) >> 3;
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetPrimaryFetchCount\n"));
+
+    /* Make sure that this is 32byte aligned */
+    if (Count & 0x03) {
+	Count += 0x03;
+	Count &= ~0x03;
+    }
+
+    hwp->writeSeq(hwp, 0x1C, (Count >> 1) & 0xFF); /* +1 in original CLE266/KM400 code */
+    ViaSeqChange(hwp, 0x1D, Count >> 9, 0x03);
+}
+
+/*
+ *
+ */
+void 
+ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+    vgaHWPtr hwp = VGAHWPTR(pScrn);
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetPrimaryFIFO\n"));
+
+    switch(pVia->Chipset) {
+    case VIA_CLE266:
+	if (CLE266_REV_IS_CX(pVia->ChipRev)) {
+	    if (pVia->HasSecondary) {  /* SAMM or DuoView case */
+		if (mode->HDisplay >= 1024) {
+		    ViaSeqChange(hwp, 0x16, 0x1C, 0x3F); /* 28 */
+		    hwp->writeSeq(hwp, 0x17, 0x3F); /* 63 */
+		}
+	    } else {   /* Single view or Simultaneous case */
+		if (mode->HDisplay > 1024) {
+		    ViaSeqChange(hwp, 0x16, 0x17, 0x3F); /* 23 */
+		    hwp->writeSeq(hwp, 0x17, 0x2F); /* 47 */
+		}
+	    }
+	    hwp->writeSeq(hwp, 0x18, 0x57); /* 23 */
+
+	    /* originally when setting secondary */
+	    ViaSetPrimaryExpireNumber(pScrn, mode, CLE266CExpireNumber);
+	} else {
+	    if ((mode->HDisplay > 1024) && pVia->HasSecondary) {
+		ViaSetCLE266APrimaryFIFO(pScrn, TRUE);
+
+		ViaSeqChange(hwp, 0x16, 0x17, 0x3F); /* 23 */
+		hwp->writeSeq(hwp, 0x17, 0x2F); /* 47 */
+		hwp->writeSeq(hwp, 0x18, 0x57); /* 23 */
+	    }
+
+	    /* originally when setting secondary */
+	    ViaSetPrimaryExpireNumber(pScrn, mode, CLE266AExpireNumber);
+	}
+
+	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
+	break;
+    case VIA_KM400:
+        if (pVia->HasSecondary) {  /* SAMM or DuoView case */
+            if ((mode->HDisplay >= 1600) &&
+                (pVia->MemClk <= VIA_MEM_DDR200)) {
+		ViaSeqChange(hwp, 0x16, 0x09, 0x3F); /* 9 */
+		hwp->writeSeq(hwp, 0x17, 0x1C); /* 28 */
+            } else {
+		ViaSeqChange(hwp, 0x16, 0x1C, 0x3F); /* 28 */
+		hwp->writeSeq(hwp, 0x17, 0x3F); /* 63 */
+            }
+        } else {
+	    if ((mode->HDisplay > 1280))
+		ViaSeqChange(hwp, 0x16, 0x1C, 0x3F); /* 28 */
+            else if (mode->HDisplay > 1024)
+		ViaSeqChange(hwp, 0x16, 0x17, 0x3F); /* 23 */
+            else
+		ViaSeqChange(hwp, 0x16, 0x10, 0x3F); /* 16 */
+	    hwp->writeSeq(hwp, 0x17, 0x3F); /* 63 */
+	}
+	hwp->writeSeq(hwp, 0x18, 0x57); /* 23 */
+
+	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
+	
+	/* originally when setting secondary */
+	ViaSetPrimaryExpireNumber(pScrn, mode, KM400ExpireNumber);
+	break;
+#ifdef HAVE_K8M800
+    case VIA_K8M800:
+	hwp->writeSeq(hwp, 0x17, 0xBF); /* 384/2 - 1 = 191 (orig via comment: 384/8) */
+	ViaSeqChange(hwp, 0x16, 0x92, 0xBF); /* 328/4 = 82 = 0x52*/
+	ViaSeqChange(hwp, 0x18, 0x8a, 0xBF); /* 74 */
+
+	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
+
+	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
+	    ViaSeqChange(hwp, 0x22, 0x10, 0x1F); /* 64/4 = 16 */
+	else
+	    ViaSeqChange(hwp, 0x22, 0x00, 0x1F); /* 128/4 = overflow = 0 */
+	break;
+#endif /* HAVE_K8M800 */
+#ifdef HAVE_PM800
+    case VIA_PM800:
+	hwp->writeSeq(hwp, 0x17, 0x5F); /* 95 */
+	ViaSeqChange(hwp, 0x16, 0x20, 0xBF); /* 32 */
+	ViaSeqChange(hwp, 0x18, 0x10, 0xBF); /* 16 */
+
+	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
+
+	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
+	    ViaSeqChange(hwp, 0x22, 0x10, 0x1F); /* 64/4 = 16 */
+	else
+	    ViaSeqChange(hwp, 0x22, 0x1F, 0x1F); /* 31 */
+	break;
+#endif /* HAVE_PM800 */
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "ViaSetPrimaryFIFO:"
+		   " Chipset %d not implemented\n", pVia->Chipset);
+	break;
+
+    }
+}
+
+/*
+ *
+ */
+static void 
+ViaSetSecondaryFetchCount(ScrnInfoPtr pScrn, int width)
+{
+    vgaHWPtr hwp = VGAHWPTR(pScrn);
+    CARD16 Count = (width * (pScrn->bitsPerPixel >> 3)) >> 3;
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetSecondaryFetchCount\n"));
+
+    /* Make sure that this is 32byte aligned */
+    if (Count & 0x03) {
+	Count += 0x03;
+	Count &= ~0x03;
+    }
+
+    hwp->writeCrtc(hwp, 0x65, (Count >> 1) & 0xFF);
+    ViaCrtcChange(hwp, 0x67, Count >> 7, 0x0C);
+}
+
+/*
+ * I've thrown out the LCD requirement. Size > 1024 is not supported
+ * by any currently known TV encoder anyway. -- Luc.
+ *
+ */
+void 
+ViaSetSecondaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+    vgaHWPtr hwp = VGAHWPTR(pScrn);
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetSecondaryFIFO\n"));
+
+    switch (pVia->Chipset) {
+    case VIA_CLE266:
+        if (CLE266_REV_IS_CX(pVia->ChipRev)) {
+            if (mode->HDisplay >= 1024) {
+		ViaCrtcChange(hwp, 0x6A, 0x20, 0x20);
+		hwp->writeCrtc(hwp, 0x68, 0xAB); /* depth: 10, threshold: 11 */
+	    } else {
+		ViaCrtcChange(hwp, 0x6A, 0x00, 0x20);
+		hwp->writeCrtc(hwp, 0x68, 0x67); /* depth: 6, threshold: 7 */
+	    }
+        } else {
+            if ((pScrn->bitsPerPixel >= 24) &&
+		(((mode->VDisplay > 768) && (pVia->MemClk <= VIA_MEM_DDR200)) ||
+                 ((mode->HDisplay > 1280) && (pVia->MemClk <= VIA_MEM_DDR266)))) {
+		ViaCrtcChange(hwp, 0x6A, 0x20, 0x20);
+		hwp->writeCrtc(hwp, 0x68, 0xAB); /* depth: 10, threshold: 11 */
+	    } else {
+		ViaCrtcChange(hwp, 0x6A, 0x00, 0x20);
+		hwp->writeCrtc(hwp, 0x68, 0x67); /* depth: 6, threshold: 7 */
+	    }
+        }
+	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
+	break;
+    case VIA_KM400:
+	if ((mode->HDisplay >= 1600) && (pVia->MemClk <= VIA_MEM_DDR200)) {
+	    ViaCrtcChange(hwp, 0x6A, 0x20, 0x20);
+	    hwp->writeCrtc(hwp, 0x68, 0xEB); /* depth: 14, threshold: 11 */
+        } else if ((pScrn->bitsPerPixel == 32) &&
+		   (((mode->HDisplay > 1024) && (pVia->MemClk <= VIA_MEM_DDR333)) ||
+		    ((mode->HDisplay >= 1024) && (pVia->MemClk <= VIA_MEM_DDR200)))) {
+	    ViaCrtcChange(hwp, 0x6A, 0x20, 0x20);
+	    hwp->writeCrtc(hwp, 0x68, 0xCA); /* depth: 12, threshold: 10 */
+        } else if ((pScrn->bitsPerPixel == 16) &&
+		   (((mode->HDisplay > 1280) && (pVia->MemClk <= VIA_MEM_DDR333)) ||
+		    ((mode->HDisplay >= 1280) && (pVia->MemClk <= VIA_MEM_DDR200)))) {
+	    ViaCrtcChange(hwp, 0x6A, 0x20, 0x20);
+	    hwp->writeCrtc(hwp, 0x68, 0xAB); /* depth: 10, threshold: 11 */
+        } else {
+	   ViaCrtcChange(hwp, 0x6A, 0x00, 0x20);
+	   hwp->writeCrtc(hwp, 0x68, 0x67); /* depth: 6, threshold: 7 */
+	}
+	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
+	break;
+#ifdef HAVE_K8M800
+    case VIA_K8M800:
+	/* depth: (384 /8 -1 -1) = 46 = 0x2E */
+	ViaCrtcChange(hwp, 0x68, 0xE0, 0xF0);
+	ViaCrtcChange(hwp, 0x94, 0x00, 0x80);
+	ViaCrtcChange(hwp, 0x95, 0x80, 0x80);
+
+	/* threshold: (328/4) = 82 = 0x52 */
+	ViaCrtcChange(hwp, 0x68, 0x02, 0x0F);
+	ViaCrtcChange(hwp, 0x95, 0x50, 0x70);
+	
+	/* preq: 74 = 0x4A */
+	ViaCrtcChange(hwp, 0x92, 0x0A, 0x0F);
+	ViaCrtcChange(hwp, 0x95, 0x04, 0x07);
+
+	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
+
+	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
+	    ViaCrtcChange(hwp, 0x94, 0x10, 0x7F); /* 64/4 */
+	else
+	    ViaCrtcChange(hwp, 0x94, 0x20, 0x7F); /* 128/4 */
+	break;
+#endif /* HAVE_K8M800 */
+#ifdef HAVE_PM800
+    case VIA_PM800:
+	/* depth: 12 - 1 = 0x0B */
+	ViaCrtcChange(hwp, 0x68, 0xB0, 0xF0);
+	ViaCrtcChange(hwp, 0x94, 0x00, 0x80);
+	ViaCrtcChange(hwp, 0x95, 0x00, 0x80);
+
+	/* threshold: 16 = 0x10 */
+	ViaCrtcChange(hwp, 0x68, 0x00, 0x0F);
+	ViaCrtcChange(hwp, 0x95, 0x10, 0x70);
+
+	/* preq: 8 = 0x08 */
+	ViaCrtcChange(hwp, 0x92, 0x08, 0x0F);
+	ViaCrtcChange(hwp, 0x95, 0x00, 0x07);
+
+	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
+
+	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
+	    ViaCrtcChange(hwp, 0x94, 0x10, 0x7F); /* 64/4 */
+	else
+	    ViaCrtcChange(hwp, 0x94, 0x20, 0x7F); /* 128/4 */
+	break;
+#endif /* HAVE_PM800 */
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "ViaSetSecondaryFIFO:"
+		   " Chipset %d not implemented\n", pVia->Chipset);
+	break;
+    }
+}
+
+/*
+ * Wrap around ViaSetCLE266APrimaryFIFO
+ */
+void 
+ViaDisablePrimaryFIFO(ScrnInfoPtr pScrn)
+{
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaDisablePrimaryFIFO\n"));
+
     /* Cause of exit XWindow will dump back register value, others chipset no
      * need to set extended fifo value */
-    if (pBIOSInfo->Chipset == VIA_CLE266 && pBIOSInfo->ChipRev < 15 &&
-        (pBIOSInfo->HDisplay > 1024 || pBIOSInfo->HasSecondary)) {
-        /* Turn off Extend FIFO */
-        /* 0x298[29] */
-        dwGE298 = VIAGETREG(0x298);
-        VIASETREG(0x298, dwGE298 | 0x20000000);
-        /* 0x230[21] */
-        dwGE230 = VIAGETREG(0x230);
-        VIASETREG(0x230, dwGE230 & ~0x00200000);
-        /* 0x298[29] */
-        dwGE298 = VIAGETREG(0x298);
-        VIASETREG(0x298, dwGE298 & ~0x20000000);
-    }
-}
-
-void VIAEnabledPrimaryExtendedFIFO(VIABIOSInfoPtr pBIOSInfo)
-{
-    VIABIOSInfoPtr  pVia = pBIOSInfo;
-    CARD8   bRegTemp;
-    CARD32  dwGE230, dwGE298;
-
-    DEBUG(xf86DrvMsg(pBIOSInfo->scrnIndex, X_INFO, "VIAEnabledPrimaryExtendedFIFO\n"));
-    switch (pBIOSInfo->Chipset) {
-    case VIA_CLE266:
-        if (pBIOSInfo->ChipRev > 14) {  /* For 3123Cx */
-            if (pBIOSInfo->HasSecondary) {  /* SAMM or DuoView case */
-                if (pBIOSInfo->HDisplay >= 1024)
-    	        {
-    	            /* 3c5.16[0:5] */
-        	        VGAOUT8(0x3C4, 0x16);
-            	    bRegTemp = VGAIN8(0x3C5);
-    	            bRegTemp &= ~0x3F;
-        	        bRegTemp |= 0x1C;
-            	    VGAOUT8(0x3C5, bRegTemp);
-        	        /* 3c5.17[0:6] */
-            	    VGAOUT8(0x3C4, 0x17);
-                	bRegTemp = VGAIN8(0x3C5);
-    	            bRegTemp &= ~0x7F;
-        	        bRegTemp |= 0x3F;
-            	    VGAOUT8(0x3C5, bRegTemp);
-    	        }
-            }
-            else   /* Single view or Simultaneous case */
-            {
-                if (pBIOSInfo->HDisplay > 1024)
-    	        {
-    	            /* 3c5.16[0:5] */
-        	        VGAOUT8(0x3C4, 0x16);
-            	    bRegTemp = VGAIN8(0x3C5);
-    	            bRegTemp &= ~0x3F;
-        	        bRegTemp |= 0x17;
-            	    VGAOUT8(0x3C5, bRegTemp);
-        	        /* 3c5.17[0:6] */
-            	    VGAOUT8(0x3C4, 0x17);
-                	bRegTemp = VGAIN8(0x3C5);
-    	            bRegTemp &= ~0x7F;
-        	        bRegTemp |= 0x2F;
-            	    VGAOUT8(0x3C5, bRegTemp);
-    	        }
-            }
-            /* 3c5.18[0:5] */
-            VGAOUT8(0x3C4, 0x18);
-            bRegTemp = VGAIN8(0x3C5);
-            bRegTemp &= ~0x3F;
-            bRegTemp |= 0x17;
-            bRegTemp |= 0x40;  /* force the preq always higher than treq */
-            VGAOUT8(0x3C5, bRegTemp);
-        }
-        else {      /* for 3123Ax */
-            if (pBIOSInfo->HDisplay > 1024 || pBIOSInfo->HasSecondary) {
-                /* Turn on Extend FIFO */
-                /* 0x298[29] */
-                dwGE298 = VIAGETREG(0x298);
-                VIASETREG(0x298, dwGE298 | 0x20000000);
-                /* 0x230[21] */
-                dwGE230 = VIAGETREG(0x230);
-                VIASETREG(0x230, dwGE230 | 0x00200000);
-                /* 0x298[29] */
-                dwGE298 = VIAGETREG(0x298);
-                VIASETREG(0x298, dwGE298 & ~0x20000000);
-
-                /* 3c5.16[0:5] */
-                VGAOUT8(0x3C4, 0x16);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp |= 0x17;
-                /* bRegTemp |= 0x10; */
-                VGAOUT8(0x3C5, bRegTemp);
-                /* 3c5.17[0:6] */
-                VGAOUT8(0x3C4, 0x17);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x7F;
-                bRegTemp |= 0x2F;
-                /*bRegTemp |= 0x1F;*/
-                VGAOUT8(0x3C5, bRegTemp);
-                /* 3c5.18[0:5] */
-                VGAOUT8(0x3C4, 0x18);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp |= 0x17;
-                bRegTemp |= 0x40;  /* force the preq always higher than treq */
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-        }
-        break;
-    case VIA_KM400:
-    case VIA_K8M800:
-        if (pBIOSInfo->HasSecondary) {  /* SAMM or DuoView case */
-            if ((pBIOSInfo->HDisplay >= 1600) &&
-                (pBIOSInfo->MemClk <= VIA_MEM_DDR200)) {
-        	    /* enable CRT extendded FIFO */
-            	VGAOUT8(0x3C4, 0x17);
-                VGAOUT8(0x3C5, 0x1C);
-    	        /* revise second display queue depth and read threshold */
-        	    VGAOUT8(0x3C4, 0x16);
-            	bRegTemp = VGAIN8(0x3C5);
-    	        bRegTemp &= ~0x3F;
-    	        bRegTemp = (bRegTemp) | (0x09);
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-            else {
-                /* enable CRT extended FIFO */
-                VGAOUT8(0x3C4, 0x17);
-                VGAOUT8(0x3C5,0x3F);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3C4, 0x16);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp = (bRegTemp) | (0x1C);
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-            /* 3c5.18[0:5] */
-            VGAOUT8(0x3C4, 0x18);
-            bRegTemp = VGAIN8(0x3C5);
-            bRegTemp &= ~0x3F;
-            bRegTemp |= 0x17;
-            bRegTemp |= 0x40;  /* force the preq always higher than treq */
-            VGAOUT8(0x3C5, bRegTemp);
-        }
-        else {
-            if ( (pBIOSInfo->HDisplay > 1024) && (pBIOSInfo->HDisplay <= 1280) )
-            {
-                /* enable CRT extendded FIFO */
-                VGAOUT8(0x3C4, 0x17);
-                VGAOUT8(0x3C5, 0x3F);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3C4, 0x16);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp = (bRegTemp) | (0x17);
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-            else if ((pBIOSInfo->HDisplay > 1280))
-            {
-                /* enable CRT extendded FIFO */
-                VGAOUT8(0x3C4, 0x17);
-                VGAOUT8(0x3C5, 0x3F);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3C4, 0x16);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp = (bRegTemp) | (0x1C);
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-            else
-            {
-                /* enable CRT extendded FIFO */
-                VGAOUT8(0x3C4, 0x17);
-                VGAOUT8(0x3C5, 0x3F);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3C4, 0x16);
-                bRegTemp = VGAIN8(0x3C5);
-                bRegTemp &= ~0x3F;
-                bRegTemp = (bRegTemp) | (0x10);
-                VGAOUT8(0x3C5, bRegTemp);
-            }
-            /* 3c5.18[0:5] */
-            VGAOUT8(0x3C4, 0x18);
-            bRegTemp = VGAIN8(0x3C5);
-            bRegTemp &= ~0x3F;
-            bRegTemp |= 0x17;
-            bRegTemp |= 0x40;  /* force the preq always higher than treq */
-            VGAOUT8(0x3C5, bRegTemp);
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-void VIAEnabledSecondaryExtendedFIFO(VIABIOSInfoPtr pBIOSInfo)
-{
-    VIABIOSInfoPtr  pVia = pBIOSInfo;
-    CARD8   bRegTemp;
-    DEBUG(xf86DrvMsg(pBIOSInfo->scrnIndex, X_INFO, "VIAEnabledSecondaryExtendedFIFO\n"));
-    switch (pBIOSInfo->Chipset) {
-    case VIA_CLE266:
-        if (pBIOSInfo->ChipRev > 15) {  /* for 3123Cx */
-            if (((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                 (pBIOSInfo->panelX >= 1024)) || (pBIOSInfo->HDisplay >= 1024)) {
-                /* enable extendded FIFO */
-                VGAOUT8(0x3D4, 0x6a);
-                bRegTemp = VGAIN8(0x3D5);
-                bRegTemp |= 0x20;
-                VGAOUT8(0x3D5, bRegTemp);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3D4, 0x68);
-                VGAOUT8(0x3D5, 0xab);
-            }
-            else
-            {
-                /* disable extendded FIFO */
-                VGAOUT8(0x3D4, 0x6a);
-                bRegTemp = VGAIN8(0x3D5);
-                bRegTemp &= ~0x20;
-                VGAOUT8(0x3D5, bRegTemp);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3D4, 0x68);
-                VGAOUT8(0x3D5, 0x67);
-            }
-        }
-        else {      /* for 3123Ax */
-            /* TV highest X-Resolution is smaller than 1280,
-             * pBIOSInfo->HDisplay >= 1280 don't care. */
-            if ((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                (((pBIOSInfo->panelY > 768) && (pBIOSInfo->bitsPerPixel >= 24) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR200)) ||
-                 ((pBIOSInfo->panelX > 1280) && (pBIOSInfo->bitsPerPixel >= 24) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR266)))) {
-                /* enable extendded FIFO */
-                VGAOUT8(0x3D4, 0x6a);
-                bRegTemp = VGAIN8(0x3D5);
-                bRegTemp |= 0x20;
-                VGAOUT8(0x3D5, bRegTemp);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3D4, 0x68);
-                VGAOUT8(0x3D5, 0xab);
-            }
-            else {
-                /* disable extendded FIFO */
-                VGAOUT8(0x3D4, 0x6a);
-                bRegTemp = VGAIN8(0x3D5);
-                bRegTemp &= ~0x20;
-                VGAOUT8(0x3D5, bRegTemp);
-                /* revise second display queue depth and read threshold */
-                VGAOUT8(0x3D4, 0x68);
-                VGAOUT8(0x3D5, 0x67);
-            }
-        }
-        break;
-    case VIA_KM400:
-    case VIA_K8M800:
-        if ((((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-              (pBIOSInfo->panelX >= 1600)) || (pBIOSInfo->HDisplay >= 1600)) &&
-            (pBIOSInfo->MemClk <= VIA_MEM_DDR200)) {
-    	    /* enable extendded FIFO */
-            VGAOUT8(0x3D4, 0x6a);
-            bRegTemp = VGAIN8(0x3D5);
-            bRegTemp |= 0x20;
-            VGAOUT8(0x3D5, bRegTemp);
-            /* revise second display queue depth and read threshold */
-            VGAOUT8(0x3D4, 0x68);
-            VGAOUT8(0x3D5, 0xeb);
-        }
-        else if (((((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                    (pBIOSInfo->panelX > 1024)) || (pBIOSInfo->HDisplay > 1024)) &&
-                  (pBIOSInfo->bitsPerPixel == 32) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR333)) ||
-                 ((((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                    (pBIOSInfo->panelX == 1024)) || (pBIOSInfo->HDisplay == 1024)) &&
-                  (pBIOSInfo->bitsPerPixel == 32) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR200))) {
-    	    /* enable extendded FIFO */
-            VGAOUT8(0x3D4, 0x6a);
-            bRegTemp = VGAIN8(0x3D5);
-            bRegTemp |= 0x20;
-            VGAOUT8(0x3D5, bRegTemp);
-            /* revise second display queue depth and read threshold */
-            VGAOUT8(0x3D4, 0x68);
-            VGAOUT8(0x3D5, 0xca);
-        }
-        else if (((((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                    (pBIOSInfo->panelX > 1280)) || (pBIOSInfo->HDisplay > 1280)) &&
-                  (pBIOSInfo->bitsPerPixel == 16) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR333)) ||
-                 ((((pBIOSInfo->ActiveDevice & (VIA_DEVICE_LCD | VIA_DEVICE_DFP)) &&
-                    (pBIOSInfo->panelX == 1280)) || (pBIOSInfo->HDisplay == 1280)) &&
-                  (pBIOSInfo->bitsPerPixel == 16) &&
-                  (pBIOSInfo->MemClk <= VIA_MEM_DDR200))) {
-    	    /* enable extendded FIFO */
-            VGAOUT8(0x3D4, 0x6a);
-            bRegTemp = VGAIN8(0x3D5);
-            bRegTemp |= 0x20;
-            VGAOUT8(0x3D5, bRegTemp);
-            /* revise second display queue depth and read threshold */
-            VGAOUT8(0x3D4, 0x68);
-            VGAOUT8(0x3D5, 0xab);
-        }
-        else {
-    	    /* disable extendded FIFO */
-        	VGAOUT8(0x3D4, 0x6a);
-	        bRegTemp = VGAIN8(0x3D5);
-    	    bRegTemp &= ~0x20;
-        	VGAOUT8(0x3D5, bRegTemp);
-	        /* revise second display queue depth and read threshold */
-    	    VGAOUT8(0x3D4, 0x68);
-        	VGAOUT8(0x3D5, 0x67);
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-void VIAFillExpireNumber(VIABIOSInfoPtr pBIOSInfo)
-{
-    VIABIOSInfoPtr  pVia = pBIOSInfo;
-    CARD8   bRegTemp;
-    const VIAPanel3C522Tue*    TuneExpireNum;
-
-    DEBUG(xf86DrvMsg(pBIOSInfo->scrnIndex, X_INFO, "VIAFillExpireNumber\n"));
-    switch (pBIOSInfo->Chipset) {
-    case VIA_CLE266:
-        if (pBIOSInfo->ChipRev > 14) {
-            TuneExpireNum = Panel_Tuning_LstC0;
-        }
-        else {
-            TuneExpireNum = Panel_Tuning_Lst;
-        }
-        break;
-    case VIA_KM400:
-    case VIA_K8M800:
-        TuneExpireNum = Panel_Tuning_Lst3205;
-        break;
-    default:
-        return;
-        break;
-    }
-    while (TuneExpireNum->wPanelXres != 0) {
-        if (TuneExpireNum->wPanelXres == pBIOSInfo->panelX &&
-            TuneExpireNum->wPanelYres == pBIOSInfo->panelY &&
-            TuneExpireNum->wPanelBpp == pBIOSInfo->bitsPerPixel &&
-            TuneExpireNum->bRamClock == pBIOSInfo->MemClk) {
-            VGAOUT8(0x3C4, 0x22);
-            bRegTemp = VGAIN8(0x3C5) & ~0x1F;
-            VGAOUT8(0x3C5, (bRegTemp | TuneExpireNum->bTuningValue));
-        }
-        TuneExpireNum ++;
-    }
+    if ((pVia->Chipset == VIA_CLE266) && CLE266_REV_IS_AX(pVia->ChipRev) &&
+        ((pScrn->currentMode->HDisplay > 1024) || pVia->HasSecondary))
+        ViaSetCLE266APrimaryFIFO(pScrn, FALSE);
 }

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_i2c.c,v 1.3 2003/08/27 15:16:09 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_i2c.c,v 1.4 2003/12/31 05:42:05 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -35,380 +35,647 @@
 #include "vgaHW.h"
 
 #include "via_driver.h"
+#include "via_vgahw.h"
 
 /*
  * DDC2 support requires DDC_SDA_MASK and DDC_SCL_MASK
  */
-#define DDC_SDA_READ_MASK  (1 << 2)
-#define DDC_SCL_READ_MASK  (1 << 3)
-#define DDC_SDA_WRITE_MASK (1 << 4)
-#define DDC_SCL_WRITE_MASK (1 << 5)
+#define DDC_SDA_READ_MASK  0x04
+#define DDC_SCL_READ_MASK  0x08
+#define DDC_SDA_WRITE_MASK 0x10
+#define DDC_SCL_WRITE_MASK 0x20
 
-/* I2C Function for DDC2 */
+/* 
+ *
+ * CRT I2C
+ *
+ */
+/*
+ *
+ */
 static void
-VIAI2C1PutBits(I2CBusPtr b, int clock,  int data)
+VIAI2C1PutBits(I2CBusPtr Bus, int clock,  int data)
 {
-    CARD8 reg;
-
-    outb(0x3c4, 0x26);
-    reg = inb(0x3c5);
-    reg &= 0xF0;
-    reg |= 0x01;                    /* Enable DDC */
-
+    vgaHWPtr hwp = VGAHWPTR(xf86Screens[Bus->scrnIndex]);
+    CARD8 value = 0x01; /* Enable DDC */
+    
     if (clock)
-        reg |= DDC_SCL_WRITE_MASK;
-    else
-        reg &= ~DDC_SCL_WRITE_MASK;
-
+        value |= DDC_SCL_WRITE_MASK;
+    
     if (data)
-        reg |= DDC_SDA_WRITE_MASK;
-    else
-        reg &= ~DDC_SDA_WRITE_MASK;
+        value |= DDC_SDA_WRITE_MASK;
 
-    outb(0x3c4, 0x26);
-    outb(0x3c5, reg);
+    ViaSeqChange(hwp, 0x26, value,
+                 0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
 }
 
+/*
+ *
+ */
 static void
-VIAI2C1GetBits(I2CBusPtr b, int *clock, int *data)
+VIAI2C1GetBits(I2CBusPtr Bus, int *clock, int *data)
 {
-    CARD8 reg;
-
-    outb(0x3c4, 0x26);
-    reg = inb(0x3c5);
-
-    *clock = (reg & DDC_SCL_READ_MASK) != 0;
-    *data  = (reg & DDC_SDA_READ_MASK) != 0;
+    vgaHWPtr hwp = VGAHWPTR(xf86Screens[Bus->scrnIndex]);
+    CARD8 value = hwp->readSeq(hwp, 0x26);
+    
+    *clock = (value & DDC_SCL_READ_MASK) != 0;
+    *data  = (value & DDC_SDA_READ_MASK) != 0;
 }
 
-/* Function for DVI DDC2. Also used for the tuner and TV IC's */
-
-static void
-VIAI2C2PutBits(I2CBusPtr b, int clock,  int data)
+/*
+ *
+ */
+static I2CBusPtr
+ViaI2CBus1Init(int scrnIndex)
 {
-    CARD8 reg;
+    I2CBusPtr pI2CBus = xf86CreateI2CBusRec();
+    
+    DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "ViaI2CBus1Init\n"));
 
-    outb(0x3c4, 0x31);
-    reg = inb(0x3c5);
-    reg &= 0xF0;
-    reg |= 0x01;                    /* Enable DDC */
+    if (!pI2CBus)
+	return NULL;
+    
+    pI2CBus->BusName    = "I2C bus 1";
+    pI2CBus->scrnIndex  = scrnIndex;
+    pI2CBus->I2CPutBits = VIAI2C1PutBits;
+    pI2CBus->I2CGetBits = VIAI2C1GetBits;
 
+    if (!xf86I2CBusInit(pI2CBus)) {
+        xf86DestroyI2CBusRec(pI2CBus, TRUE, FALSE);
+        return NULL;
+    }
+
+    return pI2CBus;
+}
+
+/*
+ *
+ * First data bus I2C: tends to have TV-encoders
+ *
+ */
+/*
+ *
+ */
+static void
+VIAI2C2PutBits(I2CBusPtr Bus, int clock,  int data)
+{
+    vgaHWPtr hwp = VGAHWPTR(xf86Screens[Bus->scrnIndex]);
+    CARD8 value = 0x01; /* Enable DDC */
+    
     if (clock)
-        reg |= DDC_SCL_WRITE_MASK;
-    else
-        reg &= ~DDC_SCL_WRITE_MASK;
-
+        value |= DDC_SCL_WRITE_MASK;
+    
     if (data)
-        reg |= DDC_SDA_WRITE_MASK;
-    else
-        reg &= ~DDC_SDA_WRITE_MASK;
+        value |= DDC_SDA_WRITE_MASK;
 
-    outb(0x3c4, 0x31);
-    outb(0x3c5, reg);
+    ViaSeqChange(hwp, 0x31, value,
+                 0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
 }
+
+/*
+ *
+ */
+static void
+VIAI2C2GetBits(I2CBusPtr Bus, int *clock, int *data)
+{
+    vgaHWPtr hwp = VGAHWPTR(xf86Screens[Bus->scrnIndex]);
+    CARD8 value = hwp->readSeq(hwp, 0x31);
+    
+    *clock = (value & DDC_SCL_READ_MASK) != 0;
+    *data  = (value & DDC_SDA_READ_MASK) != 0;
+}
+
+/*
+ *
+ */
+static I2CBusPtr
+ViaI2CBus2Init(int scrnIndex)
+{
+    I2CBusPtr pI2CBus = xf86CreateI2CBusRec();
+    
+    DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "ViaI2cBus2Init\n"));
+
+    if (!pI2CBus)
+	return NULL;
+    
+    pI2CBus->BusName    = "I2C bus 2";
+    pI2CBus->scrnIndex  = scrnIndex;
+    pI2CBus->I2CPutBits = VIAI2C2PutBits;
+    pI2CBus->I2CGetBits = VIAI2C2GetBits;
+
+    if (!xf86I2CBusInit(pI2CBus)) {
+        xf86DestroyI2CBusRec(pI2CBus, TRUE, FALSE);
+        return NULL;
+    }
+
+    return pI2CBus;
+}
+
+/*
+ *
+ * If we ever get some life in the gpioi2c code, work it into
+ * xf86I2C, here.
+ *
+ */
+/*
+ *
+ */
+static I2CBusPtr
+ViaI2CBus3Init(int scrnIndex)
+{
+    DEBUG(xf86DrvMsg(scrnIndex, X_INFO, "ViaI2CBus3Init\n"));
+
+#if 0
+    {
+	I2CBusPtr pI2CBus = xf86CreateI2CBusRec();
+    
+	if (!pI2CBus)
+	    return NULL;
+	
+	pI2CBus->BusName    = "I2C bus 3";
+	pI2CBus->scrnIndex  = scrnIndex;
+	pI2CBus->I2CPutBits = VIAI2C3PutBits;
+	pI2CBus->I2CGetBits = VIAI2C3GetBits;
+	
+	if (!xf86I2CBusInit(pI2CBus)) {
+	    xf86DestroyI2CBusRec(pI2CBus, TRUE, FALSE);
+	    return NULL;
+	}
+	
+	return pI2CBus; 
+    }
+#else
+    xf86DrvMsg(scrnIndex, X_INFO, "Warning: Third I2C Bus not"
+	       " implemented.\n");
+
+    return NULL;
+#endif
+}
+
+/*
+ *
+ * Ye Olde GPIOI2C code. -evil-
+ *
+ */
+
+#define VIA_GPIOI2C_PORT 0x2C
+
+#define GPIOI2C_MASKD           0xC0
+#define GPIOI2C_SCL_MASK        0x80
+#define GPIOI2C_SCL_WRITE       0x80
+#define GPIOI2C_SCL_READ        0x80
+#define GPIOI2C_SDA_MASK        0x40
+#define GPIOI2C_SDA_WRITE       0x40
+#define GPIOI2C_SDA_READ        0x00  /* wouldnt this be 0x40? */
+
+#define I2C_SDA_SCL_MASK        0x30
+#define I2C_SDA_SCL             0x30
+#define I2C_OUTPUT_CLOCK        0x20
+#define I2C_OUTPUT_DATA         0x10
+#define I2C_INPUT_CLOCK         0x08
+#define I2C_INPUT_DATA          0x04
+
+#define READ_MAX_RETRIES        20
+#define WRITE_MAX_RETRIES       20
 
 static void
-VIAI2C2GetBits(I2CBusPtr b, int *clock, int *data)
+ViaGpioI2CInit(GpioI2cPtr pDev, vgaHWPtr hwp, 
+	       void (*Delay)(I2CBusPtr pBus, int usec))
 {
-    CARD8 reg;
+    DEBUG(xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "ViaGpioI2cInit\n"));
 
-    outb(0x3c4, 0x31);
-    reg = inb(0x3c5);
-
-    *clock = (reg & DDC_SCL_READ_MASK) != 0;
-    *data  = (reg & DDC_SDA_READ_MASK) != 0;
+    pDev->scrnIndex = hwp->pScrn->scrnIndex;
+    pDev->hwp = hwp;
+    pDev->RiseFallTime = 5;
+    pDev->StartTimeout = 5;
+    pDev->BitTimeout = 5;
+    pDev->ByteTimeout = 5;
+    pDev->HoldTimeout = 5;
+    pDev->Delay = Delay;
 }
 
-
-Bool
-VIAI2CInit(ScrnInfoPtr pScrn)
+void 
+VIAGPIOI2C_Initial(GpioI2cPtr pDev, CARD8 Slave)
 {
-    VIAPtr pVia = VIAPTR(pScrn);
-    I2CBusPtr I2CPtr1, I2CPtr2;
+    DEBUG(xf86DrvMsg(pDev->scrnIndex, X_INFO, "GPIOI2C_Initial\n"));
 
-    I2CPtr1 = xf86CreateI2CBusRec();
-    I2CPtr2 = xf86CreateI2CBusRec();
-    if (!I2CPtr1 || !I2CPtr2)
-        return FALSE;
+    if (Slave == 0xA0 || Slave == 0xA2) {
+        pDev->RiseFallTime = 40;
+        pDev->StartTimeout = 550;
+        pDev->ByteTimeout = 2200;
+    } else {
+        pDev->RiseFallTime = 5;
+        pDev->StartTimeout = 5;
+        pDev->ByteTimeout = 5;
+    }
 
-    I2CPtr1->BusName    = "I2C bus 1";
-    I2CPtr1->scrnIndex  = pScrn->scrnIndex;
-    I2CPtr1->I2CPutBits = VIAI2C1PutBits;
-    I2CPtr1->I2CGetBits = VIAI2C1GetBits;
+    pDev->Address = Slave;
+}
 
-    I2CPtr2->BusName    = "I2C bus 2";
-    I2CPtr2->scrnIndex  = pScrn->scrnIndex;
-    I2CPtr2->I2CPutBits = VIAI2C2PutBits;
-    I2CPtr2->I2CGetBits = VIAI2C2GetBits;
+/*
+ *
+ */
+static void
+ViaGpioI2c_Release(GpioI2cPtr pDev)
+{
+   ViaSeqChange(pDev->hwp,  VIA_GPIOI2C_PORT, 0x00, GPIOI2C_MASKD); 
+}
 
-    if (!xf86I2CBusInit(I2CPtr1) || !xf86I2CBusInit(I2CPtr2))
-        return FALSE;
+/*
+ *
+ */
+static void
+ViaGpioI2c_SCLWrite(GpioI2cPtr pDev, CARD8 Data)
+{
+  if (Data)
+      ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, 
+		   GPIOI2C_SCL_WRITE | I2C_OUTPUT_CLOCK,
+		   GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);
+  else
+      ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_WRITE,
+		   GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);  
+}
 
-    pVia->I2C_Port1 = I2CPtr1;
-    pVia->I2C_Port2 = I2CPtr2;
+/*
+ *
+ */
+#ifdef UNUSED
+static void
+ViaGpioI2c_SCLRead(GpioI2cPtr pDev)
+{
+    ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SCL_MASK);
+}
+#endif
+
+/*
+ *
+ */
+static void
+ViaGpioI2c_SDAWrite(GpioI2cPtr pDev, CARD8 Data)
+{
+    if (Data)
+	ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, 
+		     GPIOI2C_SDA_WRITE | I2C_OUTPUT_DATA,
+		     GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
+    else
+	ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SDA_WRITE,
+		     GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
+}
+
+/*
+ * GGPIOI2C_SCL_READ ???
+ */
+static void
+ViaGpioI2c_SDARead(GpioI2cPtr pDev)
+{
+    ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SDA_MASK);
+}
+
+/* Set SCL */
+static void 
+HWGPIOI2C_SetSCL(GpioI2cPtr pDev, CARD8 flag)
+{
+    ViaGpioI2c_SCLWrite(pDev, flag);
+    if (flag) 
+	pDev->Delay(NULL, pDev->RiseFallTime);
+    pDev->Delay(NULL, pDev->RiseFallTime);
+}
+
+/* Set SDA */
+static void 
+HWGPIOI2C_SetSDA(GpioI2cPtr pDev, CARD8 flag)
+{
+    ViaGpioI2c_SDAWrite(pDev, flag);
+    pDev->Delay(NULL, pDev->RiseFallTime);
+}
+
+/* Get SDA */
+static CARD8  
+HWGPIOI2C_GetSDA(GpioI2cPtr pDev)
+{
+    vgaHWPtr hwp = pDev->hwp;
+    
+    if (hwp->readSeq(hwp, 0x2C) & I2C_INPUT_DATA)
+        return 1;
+    else
+        return 0;
+}
+
+/* START Condition */
+static void 
+GPIOI2C_START(GpioI2cPtr pDev)
+{
+    HWGPIOI2C_SetSDA(pDev, 1);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    pDev->Delay(NULL, pDev->StartTimeout);
+    HWGPIOI2C_SetSDA(pDev, 0);
+    HWGPIOI2C_SetSCL(pDev, 0);
+}
+
+/* STOP Condition */
+static void 
+GPIOI2C_STOP(GpioI2cPtr pDev)
+{
+    HWGPIOI2C_SetSDA(pDev, 0);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    HWGPIOI2C_SetSDA(pDev, 1);
+    ViaGpioI2c_Release(pDev);
+    /* to make the differentiation of next START condition */
+    pDev->Delay(NULL, pDev->RiseFallTime);
+}
+
+/* Check ACK */
+static Bool 
+GPIOI2C_ACKNOWLEDGE(GpioI2cPtr pDev)
+{
+    CARD8   Status;
+
+    ViaGpioI2c_SDARead(pDev);
+    pDev->Delay(NULL, pDev->RiseFallTime);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    Status = HWGPIOI2C_GetSDA(pDev);
+    /* eh? SDAWrite before writing SCL? */
+    ViaGpioI2c_SDAWrite(pDev, Status);
+    HWGPIOI2C_SetSCL(pDev, 0);
+    pDev->Delay(NULL, pDev->RiseFallTime);
+
+    if(Status) 
+	return FALSE;
+    else 
+	return TRUE;
+}
+
+/* Send ACK */
+static Bool 
+GPIOI2C_SENDACKNOWLEDGE(GpioI2cPtr pDev)
+{
+    HWGPIOI2C_SetSDA(pDev, 0);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    HWGPIOI2C_SetSCL(pDev, 0);
+    pDev->Delay(NULL, pDev->RiseFallTime);
 
     return TRUE;
 }
 
-#ifdef _MY_I2C_
-/*------------------------------------------------
-   I2C Module
-  ------------------------------------------------*/
+/* Send NACK */
+static Bool 
+GPIOI2C_SENDNACKNOWLEDGE(GpioI2cPtr pDev)
+{
+    HWGPIOI2C_SetSDA(pDev, 1);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    HWGPIOI2C_SetSCL(pDev, 0);
+    pDev->Delay(NULL, pDev->RiseFallTime);
 
-static int pcI2CIndex   = 0x3c4;
-static int pcI2Cport    = 0x3c5;
+    return TRUE;
+}
+
+static Bool 
+GPIOI2C_WriteBit(GpioI2cPtr pDev, int sda, int timeout)
+{
+    Bool ret = TRUE;
+
+    HWGPIOI2C_SetSDA(pDev, sda);
+    pDev->Delay(NULL, pDev->RiseFallTime/5);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    pDev->Delay(NULL, pDev->HoldTimeout);
+    pDev->Delay(NULL, timeout);
+    HWGPIOI2C_SetSCL(pDev, 0);
+    pDev->Delay(NULL, pDev->RiseFallTime/5);
+
+    return ret;
+}
+
+/* Write Data(Bit by Bit) to I2C */
+static Bool 
+GPIOI2C_WriteData(GpioI2cPtr pDev, CARD8 Data)
+{
+    int     i;
+
+    if (!GPIOI2C_WriteBit(pDev, (Data >> 7) & 1, pDev->ByteTimeout))
+	return FALSE;
+
+    for (i = 6; i >= 0; i--)
+	if (!GPIOI2C_WriteBit(pDev, (Data >> i) & 1, pDev->BitTimeout))
+	    return FALSE;
+
+    return GPIOI2C_ACKNOWLEDGE(pDev);
+}
+
+static Bool 
+GPIOI2C_ReadBit(GpioI2cPtr pDev, int *psda, int timeout)
+{
+    Bool ret = TRUE;
+
+    ViaGpioI2c_SDARead(pDev);
+    pDev->Delay(NULL, pDev->RiseFallTime/5);
+    HWGPIOI2C_SetSCL(pDev, 1);
+    pDev->Delay(NULL, pDev->HoldTimeout);
+    pDev->Delay(NULL, timeout);
+    *psda = HWGPIOI2C_GetSDA(pDev);
+    HWGPIOI2C_SetSCL(pDev, 0);
+    pDev->Delay(NULL, pDev->RiseFallTime/5);
+
+    return ret;
+}
+
+/* Read Data(Bit by Bit) from I2C */
+static CARD8 
+GPIOI2C_ReadData(GpioI2cPtr pDev)
+{
+    int     i, sda;
+    CARD8   data;
+
+    if(!GPIOI2C_ReadBit(pDev, &sda, pDev->ByteTimeout))
+	return 0;
+
+    data = (sda > 0) << 7;
+    for (i = 6; i >= 0; i--)
+	if (!GPIOI2C_ReadBit(pDev, &sda, pDev->BitTimeout))
+	    return 0;
+	else
+	    data |= (sda > 0) << i;
+
+    return  data;
+}
+
+/* Write Data(one Byte) to Desired Device on I2C */
+Bool 
+VIAGPIOI2C_Write(GpioI2cPtr pDev, CARD8 SubAddress, CARD8 Data)
+{
+    int     Retry;
+    Bool    Done = FALSE;
+
+    DEBUG(xf86DrvMsg(pDev->scrnIndex, X_INFO, "VIAGPIOI2C_Write\n"));
+
+    for(Retry = 1; Retry <= WRITE_MAX_RETRIES; Retry++)
+    {
+        GPIOI2C_START(pDev);
+
+        if(!GPIOI2C_WriteData(pDev, pDev->Address)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+	if(!GPIOI2C_WriteData(pDev, (CARD8)(SubAddress))) {
+	    
+	    GPIOI2C_STOP(pDev);
+	    continue;
+	}
+
+        if(!GPIOI2C_WriteData(pDev, Data)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+        Done = TRUE;
+        break;
+    }
+
+    GPIOI2C_STOP(pDev);
+
+    return Done;
+}
+
+/* Read Data from Desired Device on I2C */
+Bool 
+VIAGPIOI2C_Read(GpioI2cPtr pDev, CARD8 SubAddress, CARD8 *Buffer, int BufferLen)
+{
+    int     i, Retry;
+
+    DEBUG(xf86DrvMsg(pDev->scrnIndex, X_INFO, "VIAGPIOI2C_Read\n"));
+
+    for(Retry = 1; Retry <= READ_MAX_RETRIES; Retry++)
+    {
+        GPIOI2C_START(pDev);
+        if(!GPIOI2C_WriteData(pDev, pDev->Address & 0xFE)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+	if(!GPIOI2C_WriteData(pDev, (CARD8)(SubAddress))) {
+	    
+	    GPIOI2C_STOP(pDev);
+	    continue;
+	}
+
+        break;
+    }
+
+    if (Retry > READ_MAX_RETRIES) 
+	return FALSE;
+
+    for(Retry = 1; Retry <= READ_MAX_RETRIES; Retry++)
+    {
+        GPIOI2C_START(pDev);
+        if(!GPIOI2C_WriteData(pDev, pDev->Address | 0x01)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+        for(i = 0; i < BufferLen; i++) {
+
+            *Buffer = GPIOI2C_ReadData(pDev);
+            Buffer ++;
+            if(BufferLen == 1)
+                /*GPIOI2C_SENDACKNOWLEDGE(pDev);*/ /* send ACK for normal operation */
+                GPIOI2C_SENDNACKNOWLEDGE(pDev);    /* send NACK for VT3191/VT3192 only */
+            else if(i < BufferLen - 1)
+                GPIOI2C_SENDACKNOWLEDGE(pDev);     /* send ACK */
+            else
+                GPIOI2C_SENDNACKNOWLEDGE(pDev);    /* send NACK */
+        }
+        GPIOI2C_STOP(pDev);
+        break;
+    }
+
+    if (Retry > READ_MAX_RETRIES)
+        return FALSE;
+    else
+        return TRUE;
+}
+
+/* Read Data(one Byte) from Desired Device on I2C */
+Bool 
+VIAGPIOI2C_ReadByte(GpioI2cPtr pDev, CARD8 SubAddress, CARD8 *Buffer)
+{
+    int     Retry;
+
+    DEBUG(xf86DrvMsg(pDev->scrnIndex, X_INFO, "VIAGPIOI2C_ReadByte\n"));
+
+    for(Retry = 1; Retry <= READ_MAX_RETRIES; Retry++)
+    {
+        GPIOI2C_START(pDev);
+        if(!GPIOI2C_WriteData(pDev, pDev->Address & 0xFE)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+	if(!GPIOI2C_WriteData(pDev, (CARD8)(SubAddress))) {
+	    
+	    GPIOI2C_STOP(pDev);
+	    continue;
+	}
+
+        break;
+    }
+
+    if (Retry > READ_MAX_RETRIES) 
+	return FALSE;
+
+    for(Retry = 1; Retry <= READ_MAX_RETRIES; Retry++) {
+
+        GPIOI2C_START(pDev);
+
+        if(!GPIOI2C_WriteData(pDev, pDev->Address | 0x01)) {
+
+            GPIOI2C_STOP(pDev);
+            continue;
+        }
+
+        *Buffer = GPIOI2C_ReadData(pDev);
+
+        GPIOI2C_STOP(pDev);
+        break;
+    }
+
+    if (Retry > READ_MAX_RETRIES)
+        return FALSE;
+    else
+        return TRUE;
+}
+
 /*
-static int pcIndexReg   = 0x31;
-static int pcSDAReadBack= 0x31;
-*/
-
-static int gSDA=0;
-
-
-#if 0
-static void I2CUDelay(int usec)
+ *
+ */
+Bool
+ViaGpioI2c_Probe(GpioI2cPtr pDev, CARD8 Address)
 {
-  long b_secs, b_usecs;
-  long a_secs, a_usecs;
-  long d_secs, d_usecs;
-  long diff;
-
-  if (usec > 0) {
-    xf86getsecs(&b_secs, &b_usecs);
-    do {
-      /* It would be nice to use {xf86}usleep,
-       * but usleep (1) takes >10000 usec !
-       */
-      xf86getsecs(&a_secs, &a_usecs);
-      d_secs  = (a_secs - b_secs);
-      d_usecs = (a_usecs - b_usecs);
-      diff = d_secs*1000000 + d_usecs;
-    } while (diff>0 && diff< (usec + 1));
-  }
-}
-#endif
-
-/* Enable I2C */
-void I2C_Enable(int pcIndexReg)
-{
-    int tempI2Cdata, Reg3C4H;
-
-    /* save 3c4H */
-    Reg3C4H = inb(pcI2CIndex);
-
-    outb(pcI2CIndex, pcIndexReg);
-    tempI2Cdata = inb(pcI2Cport);
-
-    tempI2Cdata |= 0x01; /* Bit 0:I2C Serial Port Enable */
-    outb(pcI2Cport, tempI2Cdata);
-
-    /* restore 3c4H */
-    outb(pcI2CIndex, Reg3C4H);
-
-} /* I2C_enable */
-
-
-
-/* reverse data */
-long I2C_reverk(register unsigned data)
-{
-    unsigned long rdata = 0;
-    int i;
-
-    for ( i = 0; i < 16 ; i++ ) {
-        rdata |= ( data & 1 ); /* strip off LSBIT */
-        data >>= 1;
-        rdata <<= 1;
-    }
-    return(rdata >> 1);
-
-} /* I2C_reverk */
-
-
-
-/* get an acknowledge back from a slave device */
-int I2C_ack_pc(int pcIndexReg)
-{
-    int ack;
-
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 1);
-    I2C_regwrit_pc(pcIndexReg, I2C_SCL, HICLK);
-    ack = I2C_regread_pc(pcIndexReg, I2C_SDA);
-    I2C_regwrit_pc(pcIndexReg, I2C_SCL, LOCLK);
-
-    return (ack);
-
-}  /* I2C_ack_pc */
-
-
-
-/* send a start condition */
-void I2C_start_pc(int pcIndexReg)
-{
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 1);
-    I2C_regwrit_pc(pcIndexReg, I2C_SCL, HICLK);
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 0);
-    I2C_regwrit_pc(pcIndexReg, I2C_SCL, LOCLK);
-
-} /* I2C_start_pc */
-
-
-
-/* send a stop condition */
-void I2C_stop_pc(int pcIndexReg)
-{
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 0);
-    I2C_regwrit_pc(pcIndexReg, I2C_SCL, HICLK);
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 1);
-
-} /* I2C_stop_pc */
-
-
-
-/*  write I2C data */
-int I2C_wdata_pc(int pcIndexReg, unsigned type , unsigned data)
-{
-    int i;
-
-    data = (unsigned int)(I2C_reverk(data) >> 8);  /* MSBIT goes out first */
-
-    if ( type == I2C_ADR )
-        I2C_start_pc(pcIndexReg);
-
-    for ( i = 0; i < 8; data >>=1, i++ ) {
-        I2C_regwrit_pc(pcIndexReg, I2C_SDA, data);
-        I2C_regwrit_pc(pcIndexReg, I2C_SCL, HICLK);
-        I2C_regwrit_pc(pcIndexReg, I2C_SCL, LOCLK);
-    }
-
-    return I2C_ack_pc(pcIndexReg);  /* wait for acknowledge */
-
-} /* I2C_wdata_pc */
-
-
-/* Write SCL/SDA bit */
-void I2C_regwrit_pc(int pcIndexReg, unsigned type, unsigned data )
-{
-    int tempI2Cdata, Reg3C4H;
-
-    /* save 3c4H */
-    Reg3C4H = inb(pcI2CIndex);
-
-    outb(pcI2CIndex, pcIndexReg);
-    tempI2Cdata = inb(pcI2Cport);
-
-
-    switch (type) {
-        case I2C_SCL:
-            tempI2Cdata &= 0xcf;  /* bit5 SPCLCK, bit4 SDATA */
-            tempI2Cdata |= gSDA | ( (data & 1)<< 5);
-            outb(pcI2Cport, tempI2Cdata);
-            break;
-
-        case I2C_SDA:
-            tempI2Cdata &= 0xef;
-            tempI2Cdata |= ( (data & 1) << 4);
-            outb(pcI2Cport, tempI2Cdata);
-
-            gSDA = 0;
-            gSDA = ( (data & 1) << 4);
-
-            break;
-    }
-
-    /* restore 3c4H */
-    outb(pcI2CIndex, Reg3C4H);
-
-} /* I2C_regwrit_pc */
-
-
-
-/* Read SDA bit */
-int I2C_regread_pc(int pcIndexReg, unsigned type)
-{
-    int temp=0,Reg3C4H;
-
-    /* save 3c4H */
-    Reg3C4H = inb(pcI2CIndex);
-
-    switch (type) {
-        case I2C_SCL :
-            break;
-
-        case I2C_SDA:
-            outb(pcI2CIndex, pcIndexReg);
-            temp = ( inb(pcI2Cport) >> 2) & 0x01;
-            break;
-    }
-
-    /* restore 3c4H */
-    outb(pcI2CIndex, Reg3C4H);
-
-    return(temp);
-
-} /* I2C_regread_pc */
-
-
-void  I2C_wdata(int pcIndexReg, int addr, int subAddr, int data)
-{
-     int ack = 1;
-
-     ack = I2C_wdata_pc(pcIndexReg, I2C_ADR, addr);
-     ack = I2C_wdata_pc(pcIndexReg, I2C_DAT, subAddr);
-     ack = I2C_wdata_pc(pcIndexReg, I2C_DAT, data);
-
-     I2C_stop_pc(pcIndexReg);
+    DEBUG(xf86DrvMsg(pDev->scrnIndex, X_INFO, "VIAGPIOI2C_Probe\n"));
+    
+    GPIOI2C_START(pDev);
+    return GPIOI2C_WriteData(pDev, Address);
 }
 
-
-int  I2C_rdata(int pcIndexReg, int addr, unsigned subAddr)
+/*
+ *
+ *
+ *
+ */
+void
+VIAI2CInit(ScrnInfoPtr pScrn)
 {
-    int StatusData =0, data, i;
+    VIAPtr pVia = VIAPTR(pScrn);
 
-    I2C_wdata_pc(pcIndexReg, I2C_ADR, addr);
-    I2C_wdata_pc(pcIndexReg, I2C_DAT, subAddr);
-    I2C_stop_pc(pcIndexReg);
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VIAI2CInit\n"));
 
-    I2C_wdata_pc(pcIndexReg, I2C_ADR, addr+1);
+    pVia->pI2CBus1 = ViaI2CBus1Init(pScrn->scrnIndex);
+    pVia->pI2CBus2 = ViaI2CBus2Init(pScrn->scrnIndex);
+    pVia->pI2CBus3 = ViaI2CBus3Init(pScrn->scrnIndex);
 
+    /* so that i dont have to clean out the lot right now. */
+    pVia->I2C_Port1 = pVia->pI2CBus1;
+    pVia->I2C_Port2 = pVia->pI2CBus2;
 
-    /*  pull SDA High */
-    I2C_regwrit_pc(pcIndexReg, I2C_SDA, 1);
-
-    /* Read Register */
-    for ( i = 0; i <= 7 ; i++ ) {
-
-        I2C_regwrit_pc(pcIndexReg, I2C_SCL, HICLK);
-        data = I2C_regread_pc(pcIndexReg, I2C_SDA);
-        I2C_regwrit_pc(pcIndexReg, I2C_SCL, LOCLK);
-
-        data &=  0x01; /* Keep SDA only */
-        StatusData <<=   1;
-        StatusData |= data;
-    }
-
-    I2C_stop_pc(pcIndexReg);
-    return(StatusData);
+    ViaGpioI2CInit(&(pVia->GpioI2c), VGAHWPTR(pScrn), 
+		     pVia->pI2CBus1->I2CUDelay);
 }
-
-Bool I2C_Write(int pcIndexReg, int addr, unsigned char *WriteBuffer, int nWrite)
-{
-    int s = 0;
-    int ack = 1;
-
-    ack = I2C_wdata_pc(pcIndexReg, I2C_ADR, addr);
-
-    if (nWrite > 0) {
-        for (; nWrite > 0; WriteBuffer++, nWrite--)
-            ack = I2C_wdata_pc(pcIndexReg, I2C_DAT, *WriteBuffer);
-        s++;
-    }
-    else {
-        I2C_stop_pc(pcIndexReg);
-        return (s);
-    }
-
-    I2C_stop_pc(pcIndexReg);
-    return (s);
-}
-#endif
