@@ -268,6 +268,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     int major, minor;
     ViaXvMCCreateContextRec *tmpComm;
     drmVersionPtr drmVer;
+    char curBusID[20];
 
     /* 
      * Verify Obvious things first 
@@ -277,8 +278,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return XvMCBadContext;
     }
 
-    if(!flags & XVMC_DIRECT) {
-	fprintf(stderr,"Indirect Rendering not supported!\nUsing Direct.\n");
+    if(!(flags & XVMC_DIRECT)) {
+	fprintf(stderr,"Indirect Rendering not supported! Using Direct.\n");
     }
 
     /* 
@@ -292,7 +293,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     context->port = port;
 
     /* 
-     * Width, Height, and flags are checked against surface_type_id
+     *  Width, Height, and flags are checked against surface_type_id
      *  and port for validity inside the X server, no need to check
      *  here.
      */
@@ -335,77 +336,102 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return BadAlloc;
     }
 
-    if((pViaXvMC->fd = drmOpen("via",NULL)) < 0) {
-	fprintf(stderr,"DRM Device for via could not be opened.\n");
-	free(pViaXvMC);
-	return BadAccess;
-    }
-
-    if (NULL == (drmVer = drmGetVersion(pViaXvMC->fd))) {
-	fprintf(stderr, 
-		"viaXvMC: Could not get drm version.");
-	return BadAccess;
-    }
-    if (((drmVer->version_major != 2 ) && (drmVer->version_minor <= 0))) {
-	fprintf(stderr, 
-		"viaXvMC: Kernel drm is not compatible with XvMC.\n"); 
-	fprintf(stderr, 
-		"viaXvMC: Kernel drm version: %d.%d.%d "
-		"and I need at least version 2.0.0.\n"
-		"Please update.\n",
-		drmVer->version_major,drmVer->version_minor,
-		drmVer->version_patchlevel); 
-	drmFreeVersion(drmVer);
-	return BadAccess;
-    } 
- 
-
-    /* 
-     * Get magic number and put it in "flags" for passing to the X server
-     * that will authenticate us to the drm so that we will be able to
-     * map memory and other stuff.
-     */
-
-    drmGetMagic(pViaXvMC->fd,&magic);
-    context->flags = (unsigned long)magic;
-
     /*
-     * Pass control to the X server to create a drmContext for us and
-     * validate the with/height and flags.
-     */
+     * We don't know the BUSID. Have the X server tell it to us by faking
+     * a working drm connection.
+     */ 
 
-    XLockDisplay(display);
-    if((ret = _xvmc_create_context(display, context, &priv_count, 
-				   &priv_data))) {
-	fprintf(stderr,"Unable to create XvMC Context.\n");
-	free(pViaXvMC);
+    strncpy(curBusID,"NOBUSID",20);
+    pViaXvMC->fd = -1;
+
+    do {
+	if (strcmp(curBusID,"NOBUSID")) {
+	    if((pViaXvMC->fd = drmOpen("via",curBusID)) < 0) {
+		fprintf(stderr,"DRM Device for via could not be opened.\n");
+		goto err2;
+	    }
+
+	    if (NULL == (drmVer = drmGetVersion(pViaXvMC->fd))) {
+		fprintf(stderr, 
+			"viaXvMC: Could not get drm version.");
+		goto err2;
+	    }
+	    if (((drmVer->version_major != 2 ) || (drmVer->version_minor < 0))) {
+		fprintf(stderr, 
+			"viaXvMC: Kernel drm is not compatible with XvMC.\n"); 
+		fprintf(stderr, 
+			"viaXvMC: Kernel drm version: %d.%d.%d "
+			"and I need at least version 2.0.0.\n"
+			"Please update.\n",
+			drmVer->version_major,drmVer->version_minor,
+			drmVer->version_patchlevel); 
+		drmFreeVersion(drmVer);
+		goto err2;
+	    } 
+	    drmGetMagic(pViaXvMC->fd,&magic);
+	} else {
+	    magic = 0;
+	}
+	context->flags = (unsigned long)magic;
+
+	/*
+	 * Pass control to the X server to create a drmContext for us, and
+	 * validate the width / height and flags.
+	 */
+
+	XLockDisplay(display);
+	if((ret = _xvmc_create_context(display, context, &priv_count, 
+				       &priv_data))) {
+	    XUnlockDisplay(display);
+	    fprintf(stderr,"Unable to create XvMC Context.\n");
+	    goto err2;
+	}
 	XUnlockDisplay(display);
-	return ret;
-    }
-    XUnlockDisplay(display);
 
+	if(priv_count != (sizeof(ViaXvMCCreateContextRec) >> 2)) {
+	    fprintf(stderr,"_xvmc_create_context() returned incorrect "
+		    "data size!\n");
+	    fprintf(stderr,"\tExpected %d, got %d\n",
+		    (sizeof(ViaXvMCCreateContextRec) >> 2),
+		    priv_count);
+	    goto err1;
+	}
 
-    if(priv_count != (sizeof(ViaXvMCCreateContextRec) >> 2)) {
-	fprintf(stderr,"_xvmc_create_context() returned incorrect "
-		"data size!\n");
-	fprintf(stderr,"\tExpected %d, got %d\n",
-		(sizeof(ViaXvMCCreateContextRec) >> 2),
-		priv_count);
+	tmpComm = (  ViaXvMCCreateContextRec *) priv_data;
+
+	if ((tmpComm->major != VIAXVMC_MAJOR) ||
+	    (tmpComm->minor != VIAXVMC_MINOR)) {
+	    fprintf(stderr,"Version mismatch between the XFree86 via driver\n"
+		    "and the XvMC library. Cannot continue!\n");
+	    goto err1;
+	}
+      
+	if (strncmp(curBusID, tmpComm->busIdString, 20)) {
+	    XLockDisplay(display);
+	    _xvmc_destroy_context(display, context);
+	    XUnlockDisplay(display);
+	    if (pViaXvMC->fd >= 0) 
+		drmClose(pViaXvMC->fd);
+	    pViaXvMC->fd = -1;
+	    strncpy(curBusID, tmpComm->busIdString, 20);
+	    continue;
+	}
+      
+	if (!tmpComm->authenticated) goto err1;
+
+	continue;
+
+      err1:
 	XLockDisplay(display);
 	_xvmc_destroy_context(display, context);
 	XUnlockDisplay(display);
+      err2:
+	if (pViaXvMC->fd >= 0) 
+	  drmClose(pViaXvMC->fd);
 	free(pViaXvMC);
 	return BadAlloc;
-    }
-
-    tmpComm = (  ViaXvMCCreateContextRec *) priv_data;
-
-    if ((tmpComm->major != VIAXVMC_MAJOR) ||
-	(tmpComm->minor != VIAXVMC_MINOR)) {
-	fprintf(stderr,"Version mismatch between the XFree86 via driver\n"
-		"and the XvMC library. Cannot continue!\n");
-	return BadAlloc;
-    }
+      
+    } while (pViaXvMC->fd < 0);
 
     pViaXvMC->ctxNo = tmpComm->ctxNo;
     pViaXvMC->drmcontext = tmpComm->drmcontext;
@@ -537,6 +563,7 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 	XFree(pViaXvMC->xvImage);
     }      
     pthread_mutex_destroy(&pViaXvMC->ctxMutex);
+    drmClose(pViaXvMC->fd);
     free(pViaXvMC);
     context->privData = NULL;
     return Success;
@@ -972,7 +999,8 @@ Status XvMCSyncSurface(Display *display,XvMCSurface *surface)
 
 	sPriv = SAREAPTR(pViaXvMC);
 	if (!pViaXvMC->decTimeOut) {
-	    if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_DECODER_IDLE, 1)) {
+	    if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_DECODER_IDLE, 
+				 1)) {
 		retVal = BadValue;
 	    }
 	} else {
