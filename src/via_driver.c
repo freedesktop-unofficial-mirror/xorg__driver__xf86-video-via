@@ -1,4 +1,5 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.16 2003/10/31 17:19:35 tsi Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.17 2003/12/17 18:57:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.17 2003/12/17 18:57:18 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -238,6 +239,7 @@ static const char *i2cSymbols[] = {
     "xf86CreateI2CDevRec",
     "xf86I2CDevInit",
     "xf86I2CWriteRead",
+    "xf86I2CProbeAddress",
     "xf86DestroyI2CDevRec",
     NULL
 };
@@ -2173,10 +2175,7 @@ static Bool VIAMapMMIO(ScrnInfoPtr pScrn)
     pVia->BltBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_MMIO, pVia->PciTag,
                                   pVia->MmioBase + VIA_MMIO_BLTBASE,
                                   VIA_MMIO_BLTSIZE);
-/*
-    pVia->FBFreeStart += 0x300000;
-    ErrorF("After 3M FBFreeStart = 0x%x\n",pVia->FBFreeStart);
-*/
+
     if (!pVia->MapBase || !pVia->BltBase) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "Internal error: cound not map registers\n");
@@ -3192,19 +3191,19 @@ VIAInitialize3DEngine(ScrnInfoPtr pScrn)
     int i;
 
     if (!pVia->sharedData->b3DRegsInitialized)
- {
+    {
 
-    VIASETREG(0x43C, 0x00010000);
+        VIASETREG(0x43C, 0x00010000);
 
-    for (i = 0; i <= 0x7D; i++)
- {
+        for (i = 0; i <= 0x7D; i++)
+        {
             VIASETREG(0x440, (CARD32) i << 24);
         }
 
-    VIASETREG(0x43C, 0x00020000);
+        VIASETREG(0x43C, 0x00020000);
 
-    for (i = 0; i <= 0x94; i++)
- {
+        for (i = 0; i <= 0x94; i++)
+        {
             VIASETREG(0x440, (CARD32) i << 24);
         }
 
@@ -3213,22 +3212,22 @@ VIAInitialize3DEngine(ScrnInfoPtr pScrn)
         VIASETREG(0x43C, 0x01020000);
 
 
-    for (i = 0; i <= 0x94; i++)
- {
+        for (i = 0; i <= 0x94; i++)
+        {
             VIASETREG(0x440, (CARD32) i << 24);
         }
 
-    VIASETREG(0x440, 0x82400000);
+        VIASETREG(0x440, 0x82400000);
         VIASETREG(0x43C, 0xfe020000);
 
-    for (i = 0; i <= 0x03; i++)
- {
+        for (i = 0; i <= 0x03; i++)
+        {
             VIASETREG(0x440, (CARD32) i << 24);
         }
 
         VIASETREG(0x43C, 0x00030000);
 
-    for (i = 0; i <= 0xff; i++)
+        for (i = 0; i <= 0xff; i++)
         {
             VIASETREG(0x440, 0);
         }
@@ -3258,7 +3257,7 @@ VIAInitialize3DEngine(ScrnInfoPtr pScrn)
 
         pVia->sharedData->b3DRegsInitialized = 1;
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-            "3D Register has been initilized !\n");
+            "3D Engine has been initialized.\n");
     }
 
     VIASETREG(0x43C,0x00fe0000);

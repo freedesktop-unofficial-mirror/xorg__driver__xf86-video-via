@@ -1,4 +1,5 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.7 2003/11/06 18:38:11 tsi Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.8 2003/12/17 18:57:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.8 2003/12/17 18:57:18 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -26,7 +27,7 @@
 #ifndef _VIA_DRIVER_H_
 #define _VIA_DRIVER_H_ 1
 
-/*#define DEBUG_PRINT*/
+/* #define DEBUG_PRINT */
 #ifdef DEBUG_PRINT
 #define DEBUG(x) x
 #else
@@ -220,6 +221,11 @@ typedef struct _VIA {
     unsigned char*      MapBaseDense;
     unsigned char*      FBBase;
     unsigned char*      FBStart;
+    
+    /* Private memory pool management */
+    int			SWOVUsed[MEM_BLOCKS]; /* Free map for SWOV pool */
+    unsigned long	SWOVPool;	/* Base of SWOV pool */
+    unsigned long	SWOVSize;	/* Size of SWOV blocks */
 
     Bool                PrimaryVidMapped;
     int                 dacSpeedBpp;
@@ -423,5 +429,10 @@ unsigned long viaOverlayHQVCalcZoomWidth(VIAPtr pVia, unsigned long dwVideoFlag,
                            unsigned long * lpzoomCtl, unsigned long * lpminiCtl, unsigned long * lpHQVfilterCtl, unsigned long * lpHQVminiCtl,unsigned long * lpHQVzoomflag);
 void viaOverlayGetV1Format(VIAPtr pVia, unsigned long dwVideoFlag,LPDDPIXELFORMAT lpDPF, unsigned long * lpdwVidCtl,unsigned long * lpdwHQVCtl );
 void viaOverlayGetV3Format(VIAPtr pVia, unsigned long dwVideoFlag,LPDDPIXELFORMAT lpDPF, unsigned long * lpdwVidCtl,unsigned long * lpdwHQVCtl );
+
+/* In via_memory.c */
+void VIAFreeLinear(VIAMemPtr);
+unsigned long VIAAllocLinear(VIAMemPtr, ScrnInfoPtr, unsigned long);
+void VIAInitPool(VIAPtr, unsigned long, unsigned long);
 
 #endif /* _VIA_DRIVER_H_ */
