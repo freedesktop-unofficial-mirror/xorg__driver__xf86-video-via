@@ -21,8 +21,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.6 2003/12/17 19:01:59 dawes Exp $ */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.6 2003/12/17 19:01:59 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.11 2004/01/29 03:13:24 dawes Exp $ */
 
 /*************************************************************************
  *
@@ -347,7 +346,9 @@ VIAInitAccel(ScreenPtr pScreen)
     ScrnInfoPtr     pScrn = xf86Screens[pScreen->myNum];
     VIAPtr          pVia = VIAPTR(pScrn);
     XAAInfoRecPtr   xaaptr;
-    BoxRec AvailFBArea;
+    BoxRec 	    AvailFBArea;
+    unsigned long   cacheEnd;
+    unsigned long   cacheEndDRI;
 
     pVia->VQStart = 0;
     if (((pVia->FBFreeEnd - pVia->FBFreeStart) >= VIA_VQ_SIZE) &&
@@ -393,8 +394,8 @@ VIAInitAccel(ScreenPtr pScreen)
     xaaptr->SetClippingRectangle = VIASetClippingRectangle;
     xaaptr->DisableClipping = VIADisableClipping;
     xaaptr->ClippingFlags = HARDWARE_CLIP_SOLID_FILL |
-                            /*HARDWARE_CLIP_SOLID_LINE |*/
-                            /*HARDWARE_CLIP_DASHED_LINE |*/
+                            HARDWARE_CLIP_SOLID_LINE |
+                            HARDWARE_CLIP_DASHED_LINE |
                             HARDWARE_CLIP_SCREEN_TO_SCREEN_COPY |
                             HARDWARE_CLIP_MONO_8x8_FILL |
                             HARDWARE_CLIP_COLOR_8x8_FILL |
@@ -419,7 +420,6 @@ VIAInitAccel(ScreenPtr pScreen)
             VIASubsequentMono8x8PatternFillRect;
     xaaptr->Mono8x8PatternFillFlags = NO_PLANEMASK |
                                       HARDWARE_PATTERN_PROGRAMMED_BITS |
-                                      HARDWARE_PATTERN_PROGRAMMED_ORIGIN |
 				      ROP_NEEDS_SOURCE |
                                       BIT_ORDER_IN_BYTE_MSBFIRST |
                                       0;
@@ -431,7 +431,6 @@ VIAInitAccel(ScreenPtr pScreen)
     xaaptr->Color8x8PatternFillFlags = NO_PLANEMASK |
                                        NO_TRANSPARENCY |
                                        HARDWARE_PATTERN_PROGRAMMED_BITS |
-                                       HARDWARE_PATTERN_PROGRAMMED_ORIGIN |
 				       ROP_NEEDS_SOURCE |
                                        0;
 
@@ -498,55 +497,87 @@ VIAInitAccel(ScreenPtr pScreen)
     xaaptr->ImageWriteRange = VIA_MMIO_BLTSIZE;
 
     /* We reserve space for pixel cache */
-    pVia->ScissB = (pVia->FBFreeStart + VIA_PIXMAP_CACHE_SIZE) / pVia->Bpl;
-    pVia->FBFreeStart += VIA_PIXMAP_CACHE_SIZE;
+    
+    cacheEnd = pVia->FBFreeEnd / pVia->Bpl;
+    cacheEndDRI = (pVia->FBFreeStart + VIA_PIXMAP_CACHE_SIZE + pVia->Bpl-1) / pVia->Bpl;
+    
+    /*
+     *	Old DRI has some assumptions here that we need to work through
+     *  and fix
+     *  UPDATE: These assumptions are that pVia->FBFreestart should
+     *  point to a free region in the framebuffer where it can place it's
+     *  allocator.
+     */
+    if(cacheEnd > cacheEndDRI)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+        	"Clipping pixmap cache for old DRI/DRM module.\n");
+        cacheEnd = cacheEndDRI;
+    }
+    
+    /*
+     *	Clip to the blitter limit
+     */
+    pVia->ScissB = cacheEnd;;
 
     if (pVia->ScissB > 2047)
         pVia->ScissB = 2047;
 
     /*
+     * The free start IS where the cache Ends. We should not add here.
+     */ 
+
+    pVia->FBFreeStart = (pVia->ScissB + 1) *pVia->Bpl;
+
+    /*
      * Finally, we set up the video memory space available to the pixmap
-     * cache. In this case, all memory from the end of the virtual screen
-     * to the end of the command overflow buffer can be used. If you haven't
-     * enabled the PIXMAP_CACHE flag, then these lines can be omitted.
+     * cache
      */
 
     AvailFBArea.x1 = 0;
     AvailFBArea.y1 = 0;
     AvailFBArea.x2 = pScrn->displayWidth;
-    AvailFBArea.y2 = (pVia->FBFreeEnd) / pVia->Bpl;
+    AvailFBArea.y2 = pVia->ScissB;
 
     /*
      * The pixmap cache must stay within the lowest 2048 lines due
      * to hardware blitting limits. The rest is available for offscreen
-     * allocations
+     * allocations unless DRI stole it.
      */
      
-    if(AvailFBArea.y2 > 2047)
-    {
-	unsigned long offset = 2048 * pVia->Bpl;
-	unsigned long size = (pVia->FBFreeEnd - offset);
-#ifdef XFREE_44	
-	int bpp = (pScrn->bitsPerPixel + 7) / 8;
-#endif
-	AvailFBArea.y2 = 2047;
-	xf86InitFBManager(pScreen, &AvailFBArea);
-#ifdef XFREE_44	
-	xf86InitFBManagerLinear(pScreen, offset/bpp, size/bpp);
-#else
-	VIAInitPool(pVia, offset, size);
-#endif	
-    }
-    else
-	xf86InitFBManager(pScreen, &AvailFBArea);
-    
-    
+    xf86InitFBManager(pScreen, &AvailFBArea);
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 					 "Using %d lines for offscreen memory.\n",
 					 AvailFBArea.y2 - pScrn->virtualY ));
 
     return XAAInit(pScreen, xaaptr);
 }
+
+void VIAInitLinear(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    VIAPtr pVia = VIAPTR(pScrn);
+#ifdef XFREE86_44	
+    /*
+     * In the 44 path we must take care not to truncate offset and size so
+     * that we get overlaps. If there is available memory below line 2048
+     * we use it.
+     */ 
+    unsigned long offset = (pVia->FBFreeStart + pVia->Bpp - 1 ) / pVia->Bpp; 
+    unsigned long size = pVia->FBFreeEnd / pVia->Bpp - offset;
+    if (size > 0) xf86InitFBManagerLinear(pScreen, offset, size);
+#else
+    /*
+     * In the 43 path we don't have to care about truncation. just use
+     * all available memory, also below line 2048. The drm module uses 
+     * pVia->FBFreeStart as offscreen available start. We do it to. 
+     */
+    unsigned long offset = pVia->FBFreeStart; 
+    unsigned long size = pVia->FBFreeEnd - offset;
+    if (size > 0 ) VIAInitPool(pVia, offset, size);
+#endif	
+}
+    
 
 
 /* The sync function for the GE */

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via.h,v 1.4 2003/08/27 15:16:06 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via.h,v 1.5 2004/01/05 00:34:17 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -574,5 +574,62 @@
 #define GEInD(port)             *((volatile CARD32 *)(lpGEMMIO + (port)))
 #define GEOutW(port, data)      *((volatile CARD16 *)(lpGEMMIO + (port))) = (data)
 #define GEOutD(port, data)      *((volatile CARD32 *)(lpGEMMIO + (port))) = (data)
+
+/*
+ *	MPEG 1/2 Slice Engine (at 0xC00 relative to base)
+ */
+ 
+#define MPG_CONTROL		0x00
+#define 	MPG_CONTROL_STRUCT	0x03
+#define			MPG_CONTROL_STRUCT_TOP		0x01
+#define			MPG_CONTROL_STRUCT_BOTTOM	0x02
+#define			MPG_CONTROL_STRUCT_FRAME	0x03
+		/* Use TOP if interlaced */
+#define		MPG_CONTROL_TYPE	0x3C
+#define			MPG_CONTROL_TYPE_I	(0x01 << 2)
+#define			MPG_CONTROL_TYPE_B	(0x02 << 2)
+#define			MPG_CONTROL_TYPE_P	(0x03 << 3)
+#define		MPG_CONTROL_ALTSCAN	0x40
+#define MPG_BLOCK		0x08		/* Unsure */
+#define MPG_COMMAND		0x0C
+#define MPG_DATA1		0x10
+#define MPG_DATA2		0x14
+#define MPG_DATA3		0x18
+#define MPG_DATA4		0x1C
+
+#define MPG_YPHYSICAL(x)	(0x20 + 12*(x))
+#define MPG_CbPHYSICAL(x)	(0x24 + 12*(x))
+#define MPG_CrPHYSICAL(x)	(0x28 + 12*(x))
+
+#define MPG_PITCH		0x50
+#define MPG_STATUS		0x54
+
+#define MPG_MATRIX_IDX		0x5C
+#define		MPG_MATRIX_IDX_INTRA	0x00
+#define		MPG_MATRIX_IDX_NON	0x01
+#define MPG_MATRIX_DATA		0x60
+
+#define MPG_SLICE_CTRL_1	0x90
+#define		MPG_SLICE_MBAMAX		0x2FFF
+#define		MPG_SLICE_PREDICTIVE_DCT	0x4000
+#define		MPG_SLICE_TOP_FIRST		0x8000
+#define 	MPG_SLICE_MACROBLOCK_WIDTH(x)	((x)<<18)	/* in 64's */
+#define	MPG_SLICE_CTRL_2	0x94
+#define		MPG_SLICE_CONCEAL_MVEC		0x0000001
+#define		MPG_SLICE_QSCALE_TYPE		0x0000002
+#define		MPG_SLICE_DCPRECISION		0x000000C
+#define		MPG_SLICE_MACROBQUOT		0x0FFFFF0
+#define		MPG_SLICE_INTRAVLC		0x1000000
+#define	MPG_SLICE_CTRL_3	0x98
+#define		MPG_SLICE_FHMVR			0x0000003
+#define		MPG_SLICE_FVMVR			0x000000C
+#define		MPG_SLICE_BHMVR			0x0000030
+#define		MPG_SLICE_BVMVR			0x00000C0
+#define		MPG_SLICE_SECOND_FIELD		0x0100000
+#define		MPG_SLICE_RESET			0x0400000
+#define MPG_SLICE_LENGTH	0x9C
+#define	MPG_SLICE_DATA		0xA0
+
+
 
 #endif /* _VIA_H_ */

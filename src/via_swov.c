@@ -1,5 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_swov.c,v 1.10 2003/12/17 19:01:59 dawes Exp $ */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_swov.c,v 1.10 2003/12/17 19:01:59 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_swov.c,v 1.11 2004/02/04 04:15:09 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -66,19 +65,18 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
 {
     VIAPtr  pVia = VIAPTR(pScrn);
     unsigned long   dwWidth, dwHeight, dwPitch=0;
-    unsigned long   dwRet=PI_OK;
     unsigned long   size;
     unsigned long   dwAddr;
     unsigned long   HQVFBSIZE = 0, SWFBSIZE = 0;
     int     iCount;        /* iCount for clean HQV FB use */
     unsigned char    *lpTmpAddr;    /* for clean HQV FB use */
     VIAHWRec *hwDiff = &pVia->ViaHW;
-    
+    unsigned long retCode;
     
     DBG_DD(ErrorF("//VIAVidCreateSurface: \n"));
 
     if ( lpDDSurfaceDesc == NULL )
-        return PI_ERR;
+        return BadAccess;
         
     ErrorF("Creating %lu surface\n", lpDDSurfaceDesc->dwFourCC);
 
@@ -121,8 +119,8 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
             SWFBSIZE = dwPitch*dwHeight;    /*YUYV*/
 
 	    VIAFreeLinear(&pVia->swov.SWOVMem);            
-            if(VIAAllocLinear(&pVia->swov.SWOVMem, pScrn, SWFBSIZE * 2))
-            	return BadAccess;
+            if(Success != (retCode = VIAAllocLinear(&pVia->swov.SWOVMem, pScrn, SWFBSIZE * 2)))
+            	return retCode;
             
             dwAddr = pVia->swov.SWOVMem.base;
             /* fill in the SW buffer with 0x8000 (YUY2-black color) to clear FB buffer*/
@@ -170,8 +168,8 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
                 size = HQVFBSIZE*2;
             
 	    VIAFreeLinear(&pVia->swov.HQVMem);                
-            if(VIAAllocLinear(&pVia->swov.HQVMem, pScrn, size))
-            	return BadAccess;
+            if(Success != (retCode = VIAAllocLinear(&pVia->swov.HQVMem, pScrn, size)))
+            	return retCode;
             dwAddr = pVia->swov.HQVMem.base;
 /*            dwAddr = pVia->swov.SWOVlinear->offset * depth + SWOVFBSIZE; */
 
@@ -253,8 +251,8 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
             SWFBSIZE = dwPitch * dwHeight * 1.5;    /* 1.5 bytes per pixel */
 
 	    VIAFreeLinear(&pVia->swov.SWfbMem);                
-	    if(VIAAllocLinear(&pVia->swov.SWfbMem, pScrn, 2 * SWFBSIZE))
-	    	return BadAccess;
+	    if(Success != (retCode = VIAAllocLinear(&pVia->swov.SWfbMem, pScrn, 2 * SWFBSIZE)))
+	    	return retCode;
 	    dwAddr = pVia->swov.SWfbMem.base;
 	    
 	    DEBUG(ErrorF("dwAddr for SWfbMem is %lu\n", dwAddr));
@@ -316,8 +314,8 @@ if (!(pVia->swov.gdwVideoFlagSW & SW_USE_HQV))
                 size = HQVFBSIZE * 2;
 
 	    VIAFreeLinear(&pVia->swov.HQVMem);                
-	    if(VIAAllocLinear(&pVia->swov.HQVMem, pScrn, size))
-	    	return BadAccess;
+	    if(Success != (retCode = VIAAllocLinear(&pVia->swov.HQVMem, pScrn, size)))
+	    	return retCode;
             
             dwAddr = pVia->swov.HQVMem.base;
 	    DEBUG(ErrorF("dwAddr for HQV is %lu\n", dwAddr));
@@ -359,7 +357,7 @@ if (!(pVia->swov.gdwVideoFlagSW & SW_USE_HQV))
             break;
     }
 
-    return dwRet;
+    return Success;
 
 } /*VIAVidCreateSurface*/
 

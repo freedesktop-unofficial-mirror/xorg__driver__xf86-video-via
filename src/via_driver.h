@@ -1,5 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.8 2003/12/17 18:57:18 dawes Exp $ */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.8 2003/12/17 18:57:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.13 2004/02/08 17:57:10 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -80,6 +79,12 @@
 #define PATCHLEVEL      30
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
+#if XF86_VERSION_CURRENT < XF86_VERSION_NUMERIC(4,3,99,14,0)
+#undef XFREE86_44 
+#else
+#define XFREE86_44 1
+#endif
+
 #define VGAIN8(addr)        MMIO_IN8(pVia->MapBase+0x8000, addr)
 #define VGAIN16(addr)       MMIO_IN16(pVia->MapBase+0x8000, addr)
 #define VGAIN(addr)         MMIO_IN32(pVia->MapBase+0x8000, addr)
@@ -156,35 +161,50 @@ typedef struct __viaVideoControl {
 
 typedef struct __VIAHWRec
 {
-    unsigned long dwThreeHQVBuffer;			/*Use Three HQV Buffers*/
-    unsigned long dwV3SrcHeightSetting;			/*Set Video Source Width and Height*/
-    unsigned long dwSupportExtendFIFO;			/*Support Extand FIFO*/
-    unsigned long dwHQVFetchByteUnit;			/*HQV Fetch Count unit is byte*/
-    unsigned long dwHQVInitPatch;			/*Initialize HQV Engine 2 times*/
-    unsigned long dwSupportV3Gamma;			/*Support V3 Gamma */
-    unsigned long dwUpdFlip;				/*Set HQV3D0[15] to flip video*/
-    unsigned long dwHQVDisablePatch;			/*Change Video Engine Clock setting for HQV disable bug*/
-    unsigned long dwSUBFlip;				/*Set HQV3D0[15] to flip video for sub-picture blending*/
-    unsigned long dwNeedV3Prefetch;			/*V3 pre-fetch function for K8*/
-    unsigned long dwNeedV4Prefetch;			/*V4 pre-fetch function for K8*/
-    unsigned long dwUseSystemMemory;			/*Use system memory for DXVA compressed data buffers*/
-    unsigned long dwExpandVerPatch;			/*Patch video HW bug in expand SIM mode or same display path*/
-    unsigned long dwExpandVerHorPatch;			/*Patch video HW bug in expand SAMM mode or same display path*/
-    unsigned long dwV3ExpireNumTune;			/*Change V3 expire number setting for V3 bandwidth issue*/
-    unsigned long dwV3FIFOThresholdTune;		/*Change V3 FIFO, Threshold and Pre-threshold setting for V3 bandwidth issue*/
-    unsigned long dwCheckHQVFIFOEmpty;                  /*HW Flip path, need to check HQV FIFO status */
-    unsigned long dwUseMPEGAGP;                         /*Use MPEG AGP function*/
-    unsigned long dwV3FIFOPatch;                        /*For CLE V3 FIFO Bug (srcWidth <= 8)*/
-    unsigned long dwSupportTwoColorKey;                 /*Support two color key*/
-    unsigned long dwCxColorSpace;                       /*CLE_Cx ColorSpace*/
+    unsigned long dwThreeHQVBuffer;		/* Use Three HQV Buffers*/
+    unsigned long dwV3SrcHeightSetting;		/* Set Video Source Width and Height*/
+    unsigned long dwSupportExtendFIFO;		/* Support Extand FIFO*/
+    unsigned long dwHQVFetchByteUnit;		/* HQV Fetch Count unit is byte*/
+    unsigned long dwHQVInitPatch;		/* Initialize HQV Engine 2 times*/
+    unsigned long dwSupportV3Gamma;		/* Support V3 Gamma */
+    unsigned long dwUpdFlip;			/* Set HQV3D0[15] to flip video*/
+    unsigned long dwHQVDisablePatch;		/* Change Video Engine Clock setting for HQV disable bug*/
+    unsigned long dwSUBFlip;			/* Set HQV3D0[15] to flip video for sub-picture blending*/
+    unsigned long dwNeedV3Prefetch;		/* V3 pre-fetch function for K8*/
+    unsigned long dwNeedV4Prefetch;		/* V4 pre-fetch function for K8*/
+    unsigned long dwUseSystemMemory;		/* Use system memory for DXVA compressed data buffers*/
+    unsigned long dwExpandVerPatch;		/* Patch video HW bug in expand SIM mode or same display path*/
+    unsigned long dwExpandVerHorPatch;		/* Patch video HW bug in expand SAMM mode or same display path*/
+    unsigned long dwV3ExpireNumTune;		/* Change V3 expire number setting for V3 bandwidth issue*/
+    unsigned long dwV3FIFOThresholdTune;	/* Change V3 FIFO, Threshold and Pre-threshold setting for V3 bandwidth issue*/
+    unsigned long dwCheckHQVFIFOEmpty;          /* HW Flip path, need to check HQV FIFO status */
+    unsigned long dwUseMPEGAGP;                 /* Use MPEG AGP function*/
+    unsigned long dwV3FIFOPatch;                /* For CLE V3 FIFO Bug (srcWidth <= 8)*/
+    unsigned long dwSupportTwoColorKey;         /* Support two color key*/
+    unsigned long dwCxColorSpace;               /* CLE_Cx ColorSpace*/
 } VIAHWRec;
 
 /*Wait Function Structure and Flag*/
 typedef struct _WaitHWINFO
 {
-    unsigned char* pjVideo;				/*MMIO Address Info*/
-    unsigned long dwVideoFlag;				/*Video Flag*/
+    unsigned char *	pjVideo;		/* MMIO Address Info*/
+    unsigned long	dwVideoFlag;		/* Video Flag*/
 }WaitHWINFO, * LPWaitHWINFO;
+
+/* VIA Tuners */
+typedef struct
+{
+    int			decoderType;		/* Decoder I2C Type */
+#define SAA7108H		0
+#define SAA7113H		1
+#define SAA7114H		2
+    I2CDevPtr 		I2C;			/* Decoder I2C */
+    I2CDevPtr 		FMI2C;			/* FM Tuner I2C */
+    
+    /* Not yet used */
+    int			autoDetect;		/* Autodetect mode */
+    int			tunerMode;		/* Fixed mode */
+} ViaTunerRec, *ViaTunerPtr;
 
 /*
  * varables that need to be shared among different screens.
@@ -301,21 +321,22 @@ typedef struct _VIA {
     Bool                Cap0_FieldSwap;
 
 #ifdef XF86DRI
-    Bool directRenderingEnabled;
-    DRIInfoPtr pDRIInfo;
-    int drmFD;
-    int numVisualConfigs;
-    __GLXvisualConfig* pVisualConfigs;
-    VIAConfigPrivPtr pVisualConfigsPriv;
-    unsigned long agpHandle;
-    unsigned long registerHandle;
-    unsigned long agpAddr;
-    unsigned char *agpBase;
-    unsigned int agpSize;
-    Bool IsPCI;
-    Bool drixinerama;
+    Bool		directRenderingEnabled;
+    DRIInfoPtr		pDRIInfo;
+    int 		drmFD;
+    int 		numVisualConfigs;
+    __GLXvisualConfig* 	pVisualConfigs;
+    VIAConfigPrivPtr 	pVisualConfigsPriv;
+    unsigned long 	agpHandle;
+    unsigned long 	registerHandle;
+    unsigned long 	agpAddr;
+    drmAddress          agpMappedAddr;
+    unsigned char 	*agpBase;
+    unsigned int 	agpSize;
+    Bool 		IsPCI;
+    Bool 		drixinerama;
 #endif
-    unsigned char		ActiveDevice;	/* if SAMM, non-equal pBIOSInfo->ActiveDevice */
+    unsigned char	ActiveDevice;	/* if SAMM, non-equal pBIOSInfo->ActiveDevice */
     unsigned char       *CursorImage;
     CARD32		CursorFG;
     CARD32		CursorBG;
@@ -331,7 +352,13 @@ typedef struct _VIA {
 
     pointer		VidReg;
     unsigned long	gdwVidRegCounter;
-    unsigned long old_dwUseExtendedFIFO;
+    unsigned long	old_dwUseExtendedFIFO;
+    
+    /* Overlay TV Tuners */
+    ViaTunerPtr		Tuner[2];
+    I2CDevPtr		CXA2104S;
+    int			AudioMode;
+    int			AudioMute;
     
     /* Global 2D state block - needs to slowly die */
     ViaGraphicRec	graphicInfo;    
@@ -378,6 +405,7 @@ void VIAHideCursor(ScrnInfoPtr);
 Bool VIAInitAccel(ScreenPtr);
 void VIAInitialize2DEngine(ScrnInfoPtr);
 void VIAAccelSync(ScrnInfoPtr);
+void VIAInitLinear(ScreenPtr pScreen);
 
 
 /* In via_shadow.c */
@@ -434,5 +462,26 @@ void viaOverlayGetV3Format(VIAPtr pVia, unsigned long dwVideoFlag,LPDDPIXELFORMA
 void VIAFreeLinear(VIAMemPtr);
 unsigned long VIAAllocLinear(VIAMemPtr, ScrnInfoPtr, unsigned long);
 void VIAInitPool(VIAPtr, unsigned long, unsigned long);
+
+/* In via_tuner.c */
+void ViaTunerStandard(ViaTunerPtr, int);
+void ViaTunerBrightness(ViaTunerPtr, int);
+void ViaTunerContrast(ViaTunerPtr, int);
+void ViaTunerHue(ViaTunerPtr, int);
+void ViaTunerLuminance(ViaTunerPtr, int);
+void ViaTunerSaturation(ViaTunerPtr, int);
+void ViaTunerInput(ViaTunerPtr, int);
+#define MODE_TV		0
+#define MODE_SVIDEO	1
+#define MODE_COMPOSITE	2
+
+void ViaTunerChannel(ViaTunerPtr, int, int);
+void ViaAudioSelect(VIAPtr pVia, int tuner);
+void ViaAudioInit(VIAPtr pVia);
+void ViaAudioMode(VIAPtr pVia, int mode);
+void ViaAudioMute(VIAPtr pVia, int mute);
+void ViaTunerProbe(ScrnInfoPtr pScrn);
+void ViaTunerDestroy(ScrnInfoPtr pScrn);
+
 
 #endif /* _VIA_DRIVER_H_ */
