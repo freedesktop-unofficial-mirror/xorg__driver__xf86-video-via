@@ -203,6 +203,7 @@ static const char *vgaHWSymbols[] = {
     "vgaHWLock",
     "vgaHWUnlock",
     "vgaHWFreeHWRec",
+    "vgaHWddc1SetSpeedWeak",
     NULL
 };
 
