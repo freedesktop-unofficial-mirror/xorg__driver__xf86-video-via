@@ -320,7 +320,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
     __GLXvisualConfig *pConfigs = 0;
     VIAConfigPrivPtr pVIAConfigs = 0;
     VIAConfigPrivPtr *pVIAConfigPtrs = 0;
-    int i, db, stencil, accum, alpha;
+    int i, db, stencil, accum;
 
     switch (pScrn->bitsPerPixel) {
 	case 8:
@@ -383,7 +383,6 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		
 			switch (stencil) {
         		    case 0:
-				/* This works best */
             			pConfigs[i].depthSize = 24;
             			pConfigs[i].stencilSize = 8;
             			break;
@@ -403,7 +402,10 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		
 			pConfigs[i].auxBuffers = 0;
         		pConfigs[i].level = 0;
-        		pConfigs[i].visualRating = GLX_NONE_EXT;
+			if (accum)
+        		    pConfigs[i].visualRating = GLX_SLOW_VISUAL_EXT;
+			else
+        		    pConfigs[i].visualRating = GLX_NONE_EXT;
         		pConfigs[i].transparentPixel = GLX_NONE_EXT;
         		pConfigs[i].transparentRed = 0;
         		pConfigs[i].transparentGreen = 0;
@@ -423,7 +425,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 	break;
 	    
 	case 32:
-	    numConfigs = 32;
+	    numConfigs = 16;
 	    if (!(pConfigs = (__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),
 						   numConfigs)))
 		return FALSE;
@@ -443,7 +445,6 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 
 	    i = 0;
 	    for (accum = 0; accum <= 1; accum++) {
-	      for (alpha = 0; alpha <= 1; alpha++) {
     		for (stencil=0; stencil<=3; stencil++) {
     		    for (db = 0; db <= 1; db++) {
         		pConfigs[i].vid = -1;
@@ -455,14 +456,8 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		pConfigs[i].redMask = -1;
         		pConfigs[i].greenMask = -1;
         		pConfigs[i].blueMask = -1;
-			/* This works best, so advertise it first */
-			if (!alpha) {
-			    pConfigs[i].alphaSize = 8;
-        		    pConfigs[i].alphaMask = 0xFF000000;
-			} else {
-			    pConfigs[i].alphaSize = 0;
-        		    pConfigs[i].alphaMask = 0;
- 			}
+			pConfigs[i].alphaSize = 8;
+        		pConfigs[i].alphaMask = 0xFF000000;
         		
 			if (accum) {
         		    pConfigs[i].accumRedSize = 16;
@@ -486,7 +481,6 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		
 			switch (stencil) {
         		    case 0:
-				/* This works best, so advertise it first */
             			pConfigs[i].depthSize = 24;
             			pConfigs[i].stencilSize = 8;
             			break;
@@ -506,7 +500,10 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		
 			pConfigs[i].auxBuffers = 0;
         		pConfigs[i].level = 0;
-        		pConfigs[i].visualRating = GLX_NONE_EXT;
+			if (accum)
+        		    pConfigs[i].visualRating = GLX_SLOW_VISUAL_EXT;
+			else
+        		    pConfigs[i].visualRating = GLX_NONE_EXT;
         		pConfigs[i].transparentPixel = GLX_NONE_EXT;
         		pConfigs[i].transparentRed = 0;
         		pConfigs[i].transparentGreen = 0;
@@ -516,7 +513,6 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
         		i++;
 		    }
     		}
-	      }
 	    }
 	
 	if (i != numConfigs) {
