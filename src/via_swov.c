@@ -44,7 +44,6 @@
 #ifdef XF86DRI
 #include "via_common.h"
 #endif
-#include "via_lib.h"
 #include "via_vgahw.h"
 #include "via_id.h"
 
@@ -218,6 +217,22 @@ static void ViaVideoRegWrite(VIAPtr pVia)
     }
 }
 
+/*
+ * Fill the buffer with 0x8000 (YUV2 black)
+ */
+static void
+ViaYUVFillBlack(VIAPtr pVia, int offset, int num)
+{
+    CARD16 *ptr = (CARD16 *)(pVia->FBBase + offset);
+
+    while(num-- > 0)
+#if X_BYTE_ORDER == X_LITTLE_ENDIAN
+	*ptr++ = 0x0080;
+#else
+        *ptr++ = 0x8000;
+#endif
+}
+
 /*************************************************************************
    Function : VIAVidCreateSurface
    Create overlay surface depend on FOURCC
@@ -264,12 +279,8 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
             	return retCode;
             
             dwAddr = pVia->swov.SWOVMem.base;
-            /* fill in the SW buffer with 0x8000 (YUY2-black color) to clear FB buffer*/
-#ifdef ALIGNMENT_EXPERIMENT
-	    ViaYUVFillBlack(pVia, dwAddr, SWFBSIZE>>2);
-#else
+
 	    ViaYUVFillBlack(pVia, dwAddr, SWFBSIZE);
-#endif
 
             pVia->swov.SWDevice.dwSWPhysicalAddr[0]   = dwAddr;
             pVia->swov.SWDevice.lpSWOverlaySurface[0] = pVia->FBBase+dwAddr;
@@ -316,13 +327,7 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
             if ( hwDiff->dwThreeHQVBuffer )    /*CLE_C0*/
                 pVia->swov.overlayRecordV1.dwHQVAddr[2] = dwAddr + 2 * HQVFBSIZE;
                 
-
-            /* fill in the HQV buffer with 0x8000 (YUY2-black color) to clear HQV buffers*/
-#ifdef ALIGNMENT_EXPERIMENT
-	    ViaYUVFillBlack(pVia, dwAddr, HQVFBSIZE>>2);
-#else
 	    ViaYUVFillBlack(pVia, dwAddr, HQVFBSIZE);
-#endif
             
             VIDOutD(HQV_DST_STARTADDR1,pVia->swov.overlayRecordV1.dwHQVAddr[1]);
             VIDOutD(HQV_DST_STARTADDR0,pVia->swov.overlayRecordV1.dwHQVAddr[0]);
@@ -377,13 +382,8 @@ unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurface
 	    dwAddr = pVia->swov.SWfbMem.base;
 	    
 	    DEBUG(ErrorF("dwAddr for SWfbMem is %lu\n", dwAddr));
-            /* fill in the SW buffer with 0x8000 (YUY2-black color) to clear FB buffer
-             */
-#ifdef ALIGNMENT_EXPERIMENT
-	    ViaYUVFillBlack(pVia, dwAddr, SWFBSIZE>>2);
-#else
+
 	    ViaYUVFillBlack(pVia, dwAddr, SWFBSIZE);
-#endif
 
             pVia->swov.SWDevice.dwSWPhysicalAddr[0]   = dwAddr;
             pVia->swov.SWDevice.dwSWCrPhysicalAddr[0] = pVia->swov.SWDevice.dwSWPhysicalAddr[0]
@@ -445,14 +445,8 @@ if (!(pVia->swov.gdwVideoFlagSW & SW_USE_HQV))
             if ( hwDiff->dwThreeHQVBuffer )    /*CLE_C0*/
                 pVia->swov.overlayRecordV1.dwHQVAddr[2] = dwAddr + 2 * HQVFBSIZE;
 
-            /* fill in the HQV buffer with 0x8000 (YUY2-black color) to clear HQV buffers
-             * FIXME: Check if should fill 3 on C0
-             */
-#ifdef ALIGNMENT_EXPERIMENT
-	    ViaYUVFillBlack(pVia, dwAddr, HQVFBSIZE>>2);
-#else
+            /* FIXME: Check if should fill 3 on C0 */
 	    ViaYUVFillBlack(pVia, dwAddr, HQVFBSIZE);
-#endif
             
             VIDOutD(HQV_DST_STARTADDR1,pVia->swov.overlayRecordV1.dwHQVAddr[1]);
             VIDOutD(HQV_DST_STARTADDR0,pVia->swov.overlayRecordV1.dwHQVAddr[0]);
@@ -958,7 +952,7 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
             {
                 viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER, V_COMPOSE_MODE , dwCompose|V3_COMMAND_FIRE );                
             }
-            
+
             viaMacro_VidREGFlush(pVia);
             return PI_ERR;
         }
@@ -1383,32 +1377,66 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
             /*if (0)*/
             {
                 DBG_DD(ErrorF("    First HQV\n")); 
-              
+        
                 viaMacro_VidREGFlush(pVia);
-
-		DBG_DD(ErrorF(" Wait flips"));
+                
+                DBG_DD(ErrorF(" Wait flips"));
                 if ( hwDiff->dwHQVInitPatch )  
                 {
-		    DBG_DD(ErrorF(" Wait flips 1"));
+                    DBG_DD(ErrorF(" Wait flips 1"));
                     viaWaitHQVFlipClear(pVia, ((dwHQVCtl&~HQV_SW_FLIP)|HQV_FLIP_STATUS)&~HQV_ENABLE);
                     VIDOutD(HQV_CONTROL, dwHQVCtl);
-		    DBG_DD(ErrorF(" Wait flips2"));
+                    DBG_DD(ErrorF(" Wait flips2"));
                     viaWaitHQVFlip(pVia);
-		    DBG_DD(ErrorF(" Wait flips 3"));
+                    DBG_DD(ErrorF(" Wait flips 3"));
                     viaWaitHQVFlipClear(pVia, ((dwHQVCtl&~HQV_SW_FLIP)|HQV_FLIP_STATUS)&~HQV_ENABLE);
                     VIDOutD(HQV_CONTROL, dwHQVCtl);
-		    DBG_DD(ErrorF(" Wait flips4"));
+                    DBG_DD(ErrorF(" Wait flips4"));
                     viaWaitHQVFlip(pVia);
                 }
                 else    /* CLE_C0 */
                 {
+                    /* check HQV is idle */
+                    {
+                        CARD32 volatile *pdwState = (CARD32 volatile *) (pVia->VidMapBase+HQV_CONTROL);
+                        DBG_DD(ErrorF("HQV control wf - %08x\n", *pdwState));
+                        
+                        while(!(*pdwState & HQV_IDLE))
+                        {
+                            DBG_DD(ErrorF("HQV control busy - %08x\n", *pdwState));
+                            usleep(1);
+                        }
+                    }
+
                     VIDOutD(HQV_CONTROL, dwHQVCtl & ~HQV_SW_FLIP);
                     VIDOutD(HQV_CONTROL, dwHQVCtl | HQV_SW_FLIP);
-		    DBG_DD(ErrorF(" Wait flips5"));
-                    viaWaitHQVFlip(pVia);
-		    DBG_DD(ErrorF(" Wait flips6"));
-                }
 
+                    {
+                        CARD32 volatile *pdwState = (CARD32 volatile *) (pVia->VidMapBase+HQV_CONTROL);
+			int i = 50;
+			
+                        DBG_DD(ErrorF("HQV control wf5 - %08x\n", *pdwState));
+
+                        DBG_DD(ErrorF(" Wait flips5")); 
+
+                        while (!(*pdwState & HQV_FLIP_STATUS))
+                        {
+                            DBG_DD(ErrorF(" HQV wait %d %08x\n",i, *pdwState));
+
+                            *pdwState |= HQV_SW_FLIP|HQV_FLIP_STATUS;
+
+                            usleep(1);
+
+                            if (!i--)
+                                break;
+                        }
+#if 0
+                        viaWaitHQVFlip(pVia);
+#endif
+                        DBG_DD(ErrorF(" Wait flips6"));
+                    }
+                }
+                
                 if (dwVideoFlag & VIDEO_1_INUSE)
                 {
                     VIDOutD(V1_CONTROL, dwVidCtl);
@@ -1420,7 +1448,7 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
                         viaWaitVBI(pVia);
 			DBG_DD(ErrorF(" Wait flips 8"));
 			hwp->writeSeq(hwp, 0x17, 0x2F);
-			ViaSeqChange(hwp, 0x16, 0x14, 0x1F);
+			ViaSeqMask(hwp, 0x16, 0x14, 0x1F);
 			hwp->writeSeq(hwp, 0x18, 0x56);
 			DBG_DD(ErrorF(" Wait flips 9"));
                     }
@@ -1473,7 +1501,7 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
         /*Hide overlay*/
         
         if ( hwDiff->dwHQVDisablePatch )     /*CLE_C0*/
-	    ViaSeqChange(hwp, 0x2E, 0x00, 0x10);
+	    ViaSeqMask(hwp, 0x2E, 0x00, 0x10);
         
         viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER,V_FIFO_CONTROL,V1_FIFO_PRETHRESHOLD12 |
              V1_FIFO_THRESHOLD8 |V1_FIFO_DEPTH16);
@@ -1482,7 +1510,7 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
 
         if (dwVideoFlag&VIDEO_HQV_INUSE)
         {
-            viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER,HQV_CONTROL, (VIDInD(HQV_CONTROL) & (~HQV_ENABLE)));            
+            viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER,HQV_CONTROL, (VIDInD(HQV_CONTROL) & (~HQV_ENABLE)));
         }
 
         if (dwVideoFlag&VIDEO_1_INUSE)
@@ -1495,11 +1523,11 @@ static unsigned long Upd_Video(ScrnInfoPtr pScrn, unsigned long dwVideoFlag,unsi
             viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER,V3_CONTROL, (VIDInD(V3_CONTROL) & (~V3_ENABLE)));        
             viaMacro_VidREGRec(pVia, VIDREGREC_SAVE_REGISTER,V_COMPOSE_MODE, (VIDInD(V_COMPOSE_MODE)|V3_COMMAND_FIRE));
         }
-        
+
         viaMacro_VidREGFlush(pVia);
         
         if ( hwDiff->dwHQVDisablePatch )     /*CLE_C0*/
-	     ViaSeqChange(hwp, 0x2E, 0x10, 0x10);
+	     ViaSeqMask(hwp, 0x2E, 0x10, 0x10);
     }  
     DBG_DD(ErrorF(" Done Upd_Video"));
 
@@ -1631,7 +1659,7 @@ unsigned long VIAVidUpdateOverlay(ScrnInfoPtr pScrn, LPDDUPDATEOVERLAY lpUpdate)
 	    else
 	    {
 	    //Set Display FIFO
-	    ViaSeqChange(hwp, 0x16, 0x0C, 0xE0);
+	    ViaSeqMask(hwp, 0x16, 0x0C, 0xE0);
 	    DBG_DD(ErrorF("set     3c4.16 : %08x \n",hwp->readSeq(hwp, 0x16)));
 	    hwp->writeSeq(hwp, 0x18, 0x4c);
 	    DBG_DD(ErrorF("        3c4.18 : %08x \n",hwp->readSeq(hwp, 0x18)));

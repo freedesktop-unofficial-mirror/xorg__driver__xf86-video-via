@@ -280,12 +280,12 @@ void ViaInitXVMC(ScreenPtr pScreen)
 		 "[XvMC] Could not get drm version. Disabling XvMC\n");
       return;
   }
-  if (((drmVer->version_major <= 1) && (drmVer->version_minor <= 2))) {
+  if (((drmVer->version_major <= 2) && (drmVer->version_minor < 0))) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		 "[XvMC] Kernel drm is not compatible with XvMC.\n"); 
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		 "[XvMC] Kernel drm version: %d.%d.%d "
-		 "and need at least version 1.3.0.\n",
+		 "and need at least version 2.0.0.\n",
 		 drmVer->version_major,drmVer->version_minor,
 		 drmVer->version_patchlevel); 
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
@@ -293,7 +293,7 @@ void ViaInitXVMC(ScreenPtr pScreen)
       drmFreeVersion(drmVer);
       return;
   } 
-  if ((drmVer->version_major >= 2)) {
+  if ((drmVer->version_major >= 3)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		 "[XvMC] XvMC X driver may not be compatible "
 		 "with kernel drm.\n");
@@ -317,7 +317,6 @@ void ViaInitXVMC(ScreenPtr pScreen)
 		0 , &(vXvMC->fbBase)) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		 "[XvMC] drmAddMap(FB) failed. Disabling XvMC.\n");
-      drmRmMap(pVia->drmFD,vXvMC->mmioBase);
       return;
   } 
 
@@ -326,7 +325,6 @@ void ViaInitXVMC(ScreenPtr pScreen)
   if (! xf86XvMCScreenInit(pScreen, 1, ppAdapt)) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		 "[XvMC] XvMCScreenInit failed. Disabling XvMC.\n");
-      drmRmMap(pVia->drmFD,vXvMC->mmioBase);
       drmRmMap(pVia->drmFD,vXvMC->fbBase);
       return;
   }   
@@ -371,6 +369,7 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
   viaPortPrivPtr pPriv = (viaPortPrivPtr) portPriv->DevPriv.ptr;
   ViaXvMCXVPriv *vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
   volatile ViaXvMCSAreaPriv *sAPriv;
+  int authenticated;
 
   sAPriv = (ViaXvMCSAreaPriv*) DRIGetSAREAPrivate(pScrn->pScreen);
 
@@ -421,7 +420,7 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 		     DRM_CONTEXT_2DONLY);
   cPriv->drmCtx = contextRec->drmcontext;
 
-  drmAuthMagic(pVia->drmFD, pContext->flags);
+  authenticated = (drmAuthMagic(pVia->drmFD, pContext->flags) == 0);
   contextRec->fbBase = (CARD8 *)pVia->FrameBufferBase;
 
   /*
@@ -440,9 +439,10 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
   contextRec->major = VIAXVMC_MAJOR;
   contextRec->minor = VIAXVMC_MINOR;
   contextRec->pl = VIAXVMC_PL;
-  strncpy (contextRec->busIdString, pDRIInfo->busIdString, 9);
+  strncpy (contextRec->busIdString,pDRIInfo->busIdString, 20);
   contextRec->initAttrs = vx->xvAttr; 
   contextRec->useAGP = pViaDRI->ringBufActive;
+  contextRec->authenticated = authenticated;
   vXvMC->nContexts++;
   vXvMC->contexts[ctxNo] = pContext->context_id;
   vXvMC->cPrivs[ctxNo] = cPriv;

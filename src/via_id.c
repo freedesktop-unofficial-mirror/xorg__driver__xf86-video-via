@@ -36,19 +36,34 @@
  * There's no reason for this to be known outside of via_id.o
  * Only a pointer to an single entry will ever be used outside.
  *
+ * The .tw trend is all too apparent and is bound to make anyone
+ * prejudist. This isn't just VIA alone. -- Luc.
+ *
  */
 struct ViaCardIdStruct ViaCardId[] = {
-    {"VIA EPIA M/MII/...",                 VIA_CLE266,  0x1106, 0x3122, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
-    {"Shuttle FX43",                       VIA_KM400,   0x1297, 0xF643, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
-    {"Asustek A7V8X-MX",                   VIA_KM400,   0x1043, 0x80ED, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    /* CLE266 */
     {"ECS G320",                           VIA_CLE266,  0x1019, 0xB320, VIA_DEVICE_CRT | VIA_DEVICE_LCD, VIA_DEVICE_LCD},
+    {"VIA EPIA M/MII/...",                 VIA_CLE266,  0x1106, 0x3122, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
+    /* KM400 */
     {"Acer Aspire 135x",                   VIA_KM400,   0x1025, 0x0033, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
+    {"Asustek A7V8X-MX",                   VIA_KM400,   0x1043, 0x80ED, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    {"Asustek A7V8X-MX SE",                VIA_KM400,   0x1043, 0x8118, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    {"Soltek SL-75MIV2",                   VIA_KM400,   0x1106, 0x0000, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* VIA/0x0000 -- soltek is .tw */
+    {"Shuttle FX43",                       VIA_KM400,   0x1297, 0xF643, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
+    {"Giga-byte 7VM400",                   VIA_KM400,   0x1458, 0xD000, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* 7VM400M-RZ, GA-7VM400AMF */
+    {"DFI KM400-MLV",                      VIA_KM400,   0x1462, 0x7061, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* ??? MSI ??? */
     {"Averatec 322x",                      VIA_KM400,   0x14FF, 0x030D, VIA_DEVICE_CRT | VIA_DEVICE_LCD, VIA_DEVICE_LCD},
     {"Gericom Hummer Advance",             VIA_KM400,   0x1584, 0x800A, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"Shuttle FX83",                       VIA_K8M800,  0x1297, 0xF683, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
-    {"Mitac 8399/Pogolinux Konabook 3100", VIA_K8M800,  0x1071, 0x8399, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
-    {"Giga-byte 7VM400M-RZ",               VIA_KM400,   0x1458, 0xD000, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
     {"ASRock Inc. K7VM4",                  VIA_KM400,   0x1849, 0x7205, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    {"Soyo K7VME",                         VIA_KM400,   0xA723, 0x10FD, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    /* K8M800 */
+    {"Acer Aspire 136x",                   VIA_K8M800,  0x1025, 0x006E, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
+    {"Mitac 8399/Pogolinux Konabook 3100", VIA_K8M800,  0x1071, 0x8399, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV, VIA_DEVICE_LCD},
+    {"Giga-byte GA-K8VM800M",              VIA_K8M800,  0x1106, 0x3108, VIA_DEVICE_CRT, VIA_DEVICE_NONE}, /* VIA/K8M800 -- giga-byte is .tw */
+    {"Shuttle FX83",                       VIA_K8M800,  0x1297, 0xF683, VIA_DEVICE_CRT | VIA_DEVICE_TV, VIA_DEVICE_NONE},
+    /* PM800 */
+    {"Biostar P4VMA-M",                    VIA_PM800,   0x1565, 0x1202, VIA_DEVICE_CRT, VIA_DEVICE_NONE},
+    /* keep this */
     {NULL,                                 VIA_UNKNOWN, 0x0000, 0x0000, VIA_DEVICE_NONE}
 };
 

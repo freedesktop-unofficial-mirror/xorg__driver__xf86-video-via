@@ -193,12 +193,11 @@ static XF86ImageRec ImagesG[NUM_IMAGES_G] =
     }    
 };
 
-static char * XVPORTNAME[5] =
+static char * XVPORTNAME[XV_PORT_NUM] =
 {
    "XV_SWOV",
    "XV_TV0" ,
    "XV_TV1" ,
-   "XV_UTCTRL",
    "XV_DUMMY"
 };
 
@@ -518,14 +517,14 @@ viaSetupImageVideoG(ScreenPtr pScreen)
     xvAutoPaint       = MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
 
     /* AllocatePortPriv();*/
-    for ( i = 0; i< XV_PORT_NUM; i ++ ) {
+    for ( i = 0; i < XV_PORT_NUM; i ++ ) {
         if(!(viaAdaptPtr[i] = xf86XVAllocateVideoAdaptorRec(pScrn)))
             return NULL;
 
         gviaPortPriv[i] =  (viaPortPrivPtr)xnfcalloc(1, sizeof(viaPortPrivRec) );
         pdevUnion[i] = (DevUnion  *)xnfcalloc(1, sizeof(DevUnion));
 
-        if(i == 0)		/* Overlay engine */
+        if(i == XV_PORT_SWOV) /* Overlay engine */
         {
             viaAdaptPtr[i]->type = XvInputMask | XvWindowMask | XvImageMask | XvVideoMask | XvStillMask;
             viaAdaptPtr[i]->flags = VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT;
@@ -545,16 +544,9 @@ viaSetupImageVideoG(ScreenPtr pScreen)
         viaAdaptPtr[i]->nPorts = 1; 
         viaAdaptPtr[i]->pPortPrivates = pdevUnion[i];
         viaAdaptPtr[i]->pPortPrivates->ptr = (pointer) gviaPortPriv[i];
-        if (i == 3) /* Utility port doesn't need attribute */
-        {
-            viaAdaptPtr[i]->nAttributes = 0;
-            viaAdaptPtr[i]->pAttributes = NULL;
-        }
-        else
-        {
-            viaAdaptPtr[i]->nAttributes = NUM_ATTRIBUTES_G;
-            viaAdaptPtr[i]->pAttributes = AttributesG;
-        }
+	viaAdaptPtr[i]->nAttributes = NUM_ATTRIBUTES_G;
+	viaAdaptPtr[i]->pAttributes = AttributesG;
+
         viaAdaptPtr[i]->nImages = NUM_IMAGES_G;
         viaAdaptPtr[i]->pImages = ImagesG;
         viaAdaptPtr[i]->PutVideo = viaPutVideo;
@@ -711,9 +703,7 @@ viaStopVideoG(ScrnInfoPtr pScrn, pointer data, Bool exit)
        pPriv->old_drw_y= 0;
        pPriv->old_drw_w= 0;
        pPriv->old_drw_h= 0;
-   } else {
-       viaStopSWOVerlay(pScrn);
-   }
+   } 
 }
 
 /* App "xawtv" attribute from -1000 to 1000 */
@@ -788,9 +778,9 @@ viaSetPortAttributeG(
     int attr, avalue;
     ViaTunerPtr pTuner = NULL;
     
-    if(pPriv->xv_portnum == COMMAND_FOR_TV0)
+    if(pPriv->xv_portnum == XV_PORT_TV0)
     	pTuner = pVia->Tuner[0];
-    else if(pPriv->xv_portnum == COMMAND_FOR_TV1)
+    else if(pPriv->xv_portnum == XV_PORT_TV1)
         pTuner = pVia->Tuner[1];
     ;
     DBG_DD(ErrorF(" via_video.c : viaSetPortAttributeG : \n"));
@@ -893,7 +883,7 @@ viaSetPortAttributeG(
 	if(pTuner)
             {
             	ViaAudioMode(pVia, value);
-            	if(pPriv->xv_portnum == COMMAND_FOR_TV0)
+            	if(pPriv->xv_portnum == XV_PORT_TV0)
 		    ViaAudioSelect(pScrn,0);
             	else
 		    ViaAudioSelect(pScrn, 1);
@@ -1109,13 +1099,13 @@ viaPutImageG(
 
     switch ( pPriv->xv_portnum )
 	{
-        case COMMAND_FOR_TV0 :
-        case COMMAND_FOR_TV1 :
+        case XV_PORT_TV0:
+        case XV_PORT_TV1:
             DBG_DD(ErrorF(" via_video.c :              : Shall not happen! \n"));
             break;
 
-        case COMMAND_FOR_SWOV    :
-        case COMMAND_FOR_DUMMY   :
+        case XV_PORT_SWOV:
+        case XV_PORT_DUMMY:
 	{
 	    DDUPDATEOVERLAY      UpdateOverlay_Video;
 	    LPDDUPDATEOVERLAY    lpUpdateOverlay = &UpdateOverlay_Video;
@@ -1271,24 +1261,24 @@ viaQueryImageAttributesG(
     if(*w > VIA_MAX_XVIMAGE_X) *w = VIA_MAX_XVIMAGE_X;
     if(*h > VIA_MAX_XVIMAGE_Y) *h = VIA_MAX_XVIMAGE_Y;
 
-    *w = (*w + 1) & ~1;
+    *w = (*w + 7) & ~7; 
     if(offsets) 
            offsets[0] = 0;
 
     switch(id) {
     case FOURCC_YV12:  /*Planar format : YV12 -4:2:0*/
-        *h = (*h + 1) & ~1;
-        size = (*w + 3) & ~3;
-        if(pitches) pitches[0] = size;
-        size *= *h;
-        if(offsets) offsets[1] = size;
-        tmp = ((*w >> 1) + 3) & ~3;
-        if(pitches) pitches[1] = pitches[2] = tmp;
-        tmp *= (*h >> 1);
-        size += tmp;
-        if(offsets) offsets[2] = size;
-        size += tmp;
-        break;
+      *h = (*h + 1) & ~1;
+      size = *w;
+      if(pitches) pitches[0] = size;
+      size *= *h;
+      if(offsets) offsets[1] = size;
+      tmp = (*w >> 1);
+      if(pitches) pitches[1] = pitches[2] = tmp;
+      tmp *= (*h >> 1);
+      size += tmp;
+      if(offsets) offsets[2] = size;
+      size += tmp;
+      break;
     case FOURCC_VIA:
         *h = (*h + 1) & ~1;
 #ifdef XF86DRI
@@ -1350,24 +1340,16 @@ viaPutVideo(ScrnInfoPtr pScrn,
 
     switch ( pPriv->xv_portnum )
     {
-        case COMMAND_FOR_TV0 :
+        case XV_PORT_TV0:
+        case XV_PORT_TV1:
             pPriv->yuv_win.x = drw_x;
             pPriv->yuv_win.y = drw_y;
             pPriv->yuv_win.width = drw_w;
             pPriv->yuv_win.height = drw_h;
             pPriv->yuv_win.chromakey = pPriv->colorKey;
             break;
-            
-        case COMMAND_FOR_TV1 :
-            pPriv->yuv_win.x = drw_x;
-            pPriv->yuv_win.y = drw_y;
-            pPriv->yuv_win.width = drw_w;
-            pPriv->yuv_win.height = drw_h;
-            pPriv->yuv_win.chromakey = pPriv->colorKey;
-            break;
-
-        case COMMAND_FOR_SWOV    :
-        case COMMAND_FOR_DUMMY   :
+        case XV_PORT_SWOV:
+        case XV_PORT_DUMMY:
             DBG_DD(ErrorF(" via_video.c : This port doesn't support PutVideo.\n"));
             return XvBadAlloc;
         default:

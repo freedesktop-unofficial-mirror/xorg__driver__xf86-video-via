@@ -30,6 +30,7 @@
 #include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86.h"
+#include "via_driver.h" /* for HAVE_DEBUG */
 #include "via_vgahw.h"
 
 /*
@@ -96,7 +97,7 @@ ViaVgahwWrite(vgaHWPtr hwp, int indexaddress, CARD8 index,
  *
  */
 void 
-ViaVgahwChange(vgaHWPtr hwp, int indexaddress, CARD8 index,
+ViaVgahwMask(vgaHWPtr hwp, int indexaddress, CARD8 index,
 	       int valueaddress, CARD8 value, CARD8 mask)
 {
     CARD8 tmp;
@@ -113,7 +114,7 @@ ViaVgahwChange(vgaHWPtr hwp, int indexaddress, CARD8 index,
  * 
  */
 void 
-ViaCrtcChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
+ViaCrtcMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
 {
     CARD8 tmp;
 
@@ -128,7 +129,7 @@ ViaCrtcChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
  *
  */
 void 
-ViaSeqChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
+ViaSeqMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
 {
     CARD8 tmp;
 
@@ -142,22 +143,32 @@ ViaSeqChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask)
 /*
  *
  */
-#ifdef REGISTER_PRINT
+#ifdef HAVE_DEBUG
 void
 ViaVgahwPrint(vgaHWPtr hwp)
 {
     int i;
-    
     xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Printing VGA Sequence registers:\n");
-    /* 0x50 - used by tuner. */
-    for (i = 0; i < 0x51; i++)
+    for (i = 0x00; i < 0x93; i++)
 	xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "SR%02X: 0x%02X\n", i, hwp->readSeq(hwp, i));
 
     xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Printing VGA CRTM/C registers:\n");
-    /* 0xA2 - something to do with LCD scaling */
-    for (i = 0; i < 0xA3; i++)
+    for (i = 0x00; i < 0x19; i++)
+        xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "CR%02X: 0x%02X\n", i, hwp->readCrtc(hwp, i));
+    for (i = 0x33; i < 0xA3; i++)
 	xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "CR%02X: 0x%02X\n", i, hwp->readCrtc(hwp, i));
+
+    xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Printing VGA Graphics registers:\n");
+    for (i = 0x00; i < 0x08; i++)
+	xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "GR%02X: 0x%02X\n", i, hwp->readGr(hwp, i));
+
+    xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Printing VGA Attribute registers:\n");
+    for (i = 0x00; i < 0x14; i++)
+	xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "AR%02X: 0x%02X\n", i, hwp->readAttr(hwp, i));
+    
+    xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Printing VGA Miscellaneous register:\n");
+    xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "Misc: 0x%02X\n", hwp->readMiscOut(hwp));
 
     xf86DrvMsg(hwp->pScrn->scrnIndex, X_INFO, "End of VGA Registers.\n");
 }
-#endif /* REGISTER_PRINT */
+#endif /* HAVE_DEBUG */

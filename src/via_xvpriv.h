@@ -29,19 +29,11 @@
 #include "xf86xv.h"
 #include "videodev.h"
 
-#define   XV_PORT_NUM       5
-#define   XV_SWOV_PORTID    0
-#define   XV_TV0_PORTID     1
-#define   XV_TV1_PORTID     2
-/* UTCTRL is deprecated */
-#define   XV_UTCTRL_PORTID  3
-#define   XV_DUMMY_PORTID   4
-
-#define   COMMAND_FOR_SWOV      XV_SWOV_PORTID
-#define   COMMAND_FOR_TV0       XV_TV0_PORTID
-#define   COMMAND_FOR_TV1       XV_TV1_PORTID
-#define   COMMAND_FOR_UTCTRL    XV_UTCTRL_PORTID
-#define   COMMAND_FOR_DUMMY     XV_DUMMY_PORTID
+#define   XV_PORT_SWOV    0
+#define   XV_PORT_TV0     1
+#define   XV_PORT_TV1     2
+#define   XV_PORT_DUMMY   3
+#define   XV_PORT_NUM     4
 
 typedef struct {
     unsigned char  xv_portnum;

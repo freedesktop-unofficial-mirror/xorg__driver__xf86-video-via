@@ -25,8 +25,6 @@
 
 #include "vgaHW.h"
 
-/* #define REGISTER_PRINT */
-
 /* not used currently */
 /*
 CARD8 ViaVgahwIn(vgaHWPtr hwp, int address);
@@ -39,14 +37,14 @@ CARD8 ViaVgahwRead(vgaHWPtr hwp, int indexaddress, CARD8 index,
 void ViaVgahwWrite(vgaHWPtr hwp, int indexaddress, CARD8 index,
 		  int valueaddress, CARD8 value);
 
-void ViaVgahwChange(vgaHWPtr hwp, int indexaddress, CARD8 index,
+void ViaVgahwMask(vgaHWPtr hwp, int indexaddress, CARD8 index,
 			int valueaddress, CARD8 value, CARD8 mask);
 
-void ViaCrtcChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
-void ViaSeqChange(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
+void ViaCrtcMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
+void ViaSeqMask(vgaHWPtr hwp, CARD8 index, CARD8 value, CARD8 mask);
 
-#ifdef REGISTER_PRINT
+#ifdef HAVE_DEBUG
 void ViaVgahwPrint(vgaHWPtr hwp);
-#endif
+#endif /* HAVE_DEBUG */
 
 #endif /* _VIA_VGAHW_H_ */

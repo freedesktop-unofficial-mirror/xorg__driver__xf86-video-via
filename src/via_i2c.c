@@ -65,8 +65,8 @@ VIAI2C1PutBits(I2CBusPtr Bus, int clock,  int data)
     if (data)
         value |= DDC_SDA_WRITE_MASK;
 
-    ViaSeqChange(hwp, 0x26, value,
-                 0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
+    ViaSeqMask(hwp, 0x26, value,
+	       0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
 }
 
 /*
@@ -128,8 +128,8 @@ VIAI2C2PutBits(I2CBusPtr Bus, int clock,  int data)
     if (data)
         value |= DDC_SDA_WRITE_MASK;
 
-    ViaSeqChange(hwp, 0x31, value,
-                 0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
+    ViaSeqMask(hwp, 0x31, value,
+	       0x01 | DDC_SCL_WRITE_MASK | DDC_SDA_WRITE_MASK);
 }
 
 /*
@@ -278,7 +278,7 @@ VIAGPIOI2C_Initial(GpioI2cPtr pDev, CARD8 Slave)
 static void
 ViaGpioI2c_Release(GpioI2cPtr pDev)
 {
-   ViaSeqChange(pDev->hwp,  VIA_GPIOI2C_PORT, 0x00, GPIOI2C_MASKD); 
+   ViaSeqMask(pDev->hwp,  VIA_GPIOI2C_PORT, 0x00, GPIOI2C_MASKD); 
 }
 
 /*
@@ -288,12 +288,12 @@ static void
 ViaGpioI2c_SCLWrite(GpioI2cPtr pDev, CARD8 Data)
 {
   if (Data)
-      ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, 
-		   GPIOI2C_SCL_WRITE | I2C_OUTPUT_CLOCK,
-		   GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);
+      ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, 
+		 GPIOI2C_SCL_WRITE | I2C_OUTPUT_CLOCK,
+		 GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);
   else
-      ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_WRITE,
-		   GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);  
+      ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_WRITE,
+		 GPIOI2C_SCL_MASK | I2C_OUTPUT_CLOCK);  
 }
 
 /*
@@ -303,7 +303,7 @@ ViaGpioI2c_SCLWrite(GpioI2cPtr pDev, CARD8 Data)
 static void
 ViaGpioI2c_SCLRead(GpioI2cPtr pDev)
 {
-    ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SCL_MASK);
+    ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SCL_MASK);
 }
 #endif
 
@@ -314,12 +314,12 @@ static void
 ViaGpioI2c_SDAWrite(GpioI2cPtr pDev, CARD8 Data)
 {
     if (Data)
-	ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, 
-		     GPIOI2C_SDA_WRITE | I2C_OUTPUT_DATA,
-		     GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
+	ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, 
+		   GPIOI2C_SDA_WRITE | I2C_OUTPUT_DATA,
+		   GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
     else
-	ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SDA_WRITE,
-		     GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
+	ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SDA_WRITE,
+		   GPIOI2C_SDA_MASK | I2C_OUTPUT_DATA);
 }
 
 /*
@@ -328,7 +328,7 @@ ViaGpioI2c_SDAWrite(GpioI2cPtr pDev, CARD8 Data)
 static void
 ViaGpioI2c_SDARead(GpioI2cPtr pDev)
 {
-    ViaSeqChange(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SDA_MASK);
+    ViaSeqMask(pDev->hwp, VIA_GPIOI2C_PORT, GPIOI2C_SCL_READ, GPIOI2C_SDA_MASK);
 }
 
 /* Set SCL */
@@ -671,10 +671,6 @@ VIAI2CInit(ScrnInfoPtr pScrn)
     pVia->pI2CBus1 = ViaI2CBus1Init(pScrn->scrnIndex);
     pVia->pI2CBus2 = ViaI2CBus2Init(pScrn->scrnIndex);
     pVia->pI2CBus3 = ViaI2CBus3Init(pScrn->scrnIndex);
-
-    /* so that i dont have to clean out the lot right now. */
-    pVia->I2C_Port1 = pVia->pI2CBus1;
-    pVia->I2C_Port2 = pVia->pI2CBus2;
 
     ViaGpioI2CInit(&(pVia->GpioI2c), VGAHWPTR(pScrn), 
 		     pVia->pI2CBus1->I2CUDelay);

@@ -26,9 +26,9 @@
 #ifndef _VIA_DRIVER_H_
 #define _VIA_DRIVER_H_ 1
 
-/* #define DEBUG_PRINT */
+/* #define HAVE_DEBUG */
 
-#ifdef DEBUG_PRINT
+#ifdef HAVE_DEBUG
 #define DEBUG(x) x
 #else
 #define DEBUG(x)
@@ -69,7 +69,7 @@
 #define DRIVER_NAME     "via"
 #define VERSION_MAJOR   0
 #define VERSION_MINOR   1
-#define PATCHLEVEL      26
+#define PATCHLEVEL      27
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
 #define VIA_MAX_ACCEL_X         (2047)
@@ -183,9 +183,7 @@ typedef struct{
 
 typedef struct _VIA {
     VIARegRec           SavedReg;
-    VIARegRec           ModeReg;
     xf86CursorInfoPtr   CursorInfoRec;
-    Bool                ModeStructInit;
     int                 Bpp, Bpl;
     unsigned            PlaneMask;
 
@@ -267,11 +265,9 @@ typedef struct _VIA {
     int			DGAOldDepth;
 
     /* I2C & DDC */
-    I2CBusPtr           I2C_Port1;
-    I2CBusPtr           I2C_Port2;
-    I2CBusPtr           pI2CBus1;    /* == I2C_Port1 */
-    I2CBusPtr           pI2CBus2;    /* == I2C_Port1 */
-    I2CBusPtr           pI2CBus3;    /* the bus now accessed as gpioi2c */
+    I2CBusPtr           pI2CBus1;    
+    I2CBusPtr           pI2CBus2;    
+    I2CBusPtr           pI2CBus3;    /* Future implementation: now gpioi2c */
     xf86MonPtr          DDC1;
     xf86MonPtr          DDC2;
     GpioI2cRec          GpioI2c; /* should be weened off, but we have no info,
@@ -334,6 +330,12 @@ typedef struct _VIA {
     int			AudioMute;
 
     ViaSharedPtr	sharedData;
+
+#ifdef HAVE_DEBUG
+    Bool                DumpVGAROM;
+    Bool                PrintVGARegs;
+    Bool                PrintTVRegs;
+#endif /* HAVE_DEBUG */
 } VIARec, *VIAPtr;
 
 

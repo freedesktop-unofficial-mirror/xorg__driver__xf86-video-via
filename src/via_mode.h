@@ -26,10 +26,206 @@
 #ifndef _VIA_MODE_H_
 #define _VIA_MODE_H_ 1
 
-static const unsigned short BIOSVer = 0X10;
+/* 
+ * First some structs and defines that used to sit in via_bios.h
+ *
+ */
 
-static char BIOSDate[] =
-                 { 0X30, 0X34, 0X2F, 0X31, 0X35, 0X2F, 0X30, 0X33, 0 };
+#define     VIA_BIOS_REG_TABLE_MAX_NUM      32
+#define     VIA_BIOS_REG_LCD_MAX_NUM        48
+#define     VIA_BIOS_NUM_RES                17
+#define     VIA_BIOS_NUM_REFRESH            5
+#define     VIA_BIOS_NUM_LCD_SUPPORT_MASK   8
+#define     VIA_BIOS_NUM_LCD_POWER_SEQ      4
+#define     VIA_BIOS_NUM_PANEL              7
+#define     VIA_BIOS_MAX_NUM_MPATCH2        18
+#define     VIA_BIOS_MAX_NUM_MPATCH1        9
+#define     VIA_BIOS_MAX_NUM_CTREXP         5
+#define     VIA_BIOS_MAX_NUM_TV_REG         144		/* 00 - 8F, tv2,tv3 are the same */
+#define     VIA_BIOS_MAX_NUM_TV_CRTC        32
+#define     VIA_BIOS_NUM_TV_SPECIAL_REG     8
+#define     VIA_BIOS_MAX_NUM_TV_PATCH       8
+#define     VIA_BIOS_NUM_TV_OTHER           16
+#define     VIA_BIOS_NUM_TV2                2
+#define     VIA_BIOS_NUM_TV3                6
+
+typedef struct _VIABIOSSTDVGATABLE {
+    CARD8           columns;
+    CARD8           rows;
+    CARD8           fontHeight;
+    CARD16          pageSize;
+    CARD8           SR[5];
+    CARD8           misc;
+    CARD8           CR[25];
+    CARD8           AR[20];
+    CARD8           GR[9];
+} VIABIOSStdVGATableRec, *VIABIOSStdVGATablePtr;
+
+
+typedef struct _VIABIOSREFRESHTABLE {
+    CARD8           refresh;
+    CARD16          VClk;
+    CARD8           CR[14];
+} VIABIOSRefreshTableRec, *VIABIOSRefreshTablePtr;
+
+
+typedef struct _VIABIOSREGTABLE {
+    CARD8   port[VIA_BIOS_REG_TABLE_MAX_NUM];
+    CARD8   offset[VIA_BIOS_REG_TABLE_MAX_NUM];
+    CARD8   mask[VIA_BIOS_REG_TABLE_MAX_NUM];
+    CARD8   data[VIA_BIOS_REG_TABLE_MAX_NUM];
+    int     numEntry;
+} VIABIOSRegTableRec, *VIABIOSRegTablePtr;
+
+
+typedef struct _VIAVMODEENTRY {
+    unsigned short          Width;
+    unsigned short          Height;
+    unsigned short          Bpp;
+    unsigned short          Mode;
+    unsigned short          MemNeed;
+    unsigned short          MClk;
+    unsigned short          VClk;
+    VIABIOSStdVGATableRec   stdVgaTable;
+    VIABIOSRegTableRec      extModeExtTable;
+} VIAModeEntry, *VIAModeEntryPtr;
+
+
+typedef struct _VIALCDMODEENTRY {
+    CARD16  LCDClk;
+    CARD16  VClk;
+    CARD16  LCDClk_12Bit;
+    CARD16  VClk_12Bit;
+    CARD8   port[VIA_BIOS_REG_LCD_MAX_NUM];
+    CARD8   offset[VIA_BIOS_REG_LCD_MAX_NUM];
+    CARD8   data[VIA_BIOS_REG_LCD_MAX_NUM];
+    int     numEntry;
+} VIALCDModeEntry, *VIALCDModeEntryPtr;
+
+
+typedef struct _VIALCDMPATCHENTRY {
+    CARD8   Mode;
+    CARD16  LCDClk;
+    CARD16  VClk;
+    CARD16  LCDClk_12Bit;
+    CARD16  VClk_12Bit;
+    CARD8   port[VIA_BIOS_REG_LCD_MAX_NUM];
+    CARD8   offset[VIA_BIOS_REG_LCD_MAX_NUM];
+    CARD8   data[VIA_BIOS_REG_LCD_MAX_NUM];
+    int     numEntry;
+} VIALCDMPatchEntry, *VIALCDMPatchEntryPtr;
+
+
+typedef struct _VIALCDMODEFIX {
+    CARD8   reqMode[32];
+    CARD8   fixMode[32];
+    int     numEntry;
+} VIALCDModeFixRec, *VIALCDModeFixRecPtr;
+
+
+typedef struct _VIALCDPOWERSEQUENCE {
+    CARD8   powerSeq;
+    CARD8   port[4];
+    CARD8   offset[4];
+    CARD8   mask[4];
+    CARD8   data[4];
+    CARD16  delay[4];
+    int     numEntry;
+} VIALCDPowerSeqRec, *VIALCDPowerSeqRecPtr;
+
+
+typedef struct _VIALCDMODETABLE {
+    CARD8                   fpIndex;
+    CARD8                   fpSize;
+    CARD8                   powerSeq;
+    int                     numMPatchDP2Ctr;
+    int                     numMPatchDP2Exp;
+    int                     numMPatchDP1Ctr;
+    int                     numMPatchDP1Exp;
+    CARD16                  SuptMode[VIA_BIOS_NUM_LCD_SUPPORT_MASK];
+    VIALCDModeEntry         FPconfigTb;
+    VIALCDModeEntry         InitTb;
+    VIALCDMPatchEntry       MPatchDP2Ctr[VIA_BIOS_MAX_NUM_MPATCH2];
+    VIALCDMPatchEntry       MPatchDP2Exp[VIA_BIOS_MAX_NUM_MPATCH2];
+    VIALCDMPatchEntry       MPatchDP1Ctr[VIA_BIOS_MAX_NUM_MPATCH1];
+    VIALCDMPatchEntry       MPatchDP1Exp[VIA_BIOS_MAX_NUM_MPATCH1];
+    VIALCDModeEntry         LowResCtr;
+    VIALCDModeEntry         LowResExp;
+    VIALCDModeEntry         MCtr[VIA_BIOS_MAX_NUM_CTREXP];
+    VIALCDModeEntry         MExp[VIA_BIOS_MAX_NUM_CTREXP];
+} VIALCDModeTableRec, *VIALCDModePtr;
+
+
+typedef struct _VIATVMASKTABLE {
+    CARD8   TV[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   CRTC1[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTC2[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   misc1;
+    CARD8   misc2;
+    int     numTV;
+    int     numCRTC1;
+    int     numCRTC2;
+} VIABIOSTVMASKTableRec, *VIABIOSTVMASKTablePtr;
+
+typedef struct _VIATVMODETABLE {
+    CARD8   TVNTSCC[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   TVNTSCS[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   CRTCNTSC1[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   MiscNTSC1[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   MiscNTSC2[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   CRTCNTSC2_8BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCNTSC2_16BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCNTSC2_32BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD16  PatchNTSC2[VIA_BIOS_MAX_NUM_TV_PATCH];
+    CARD16  DotCrawlNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD8   TVPALC[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   TVPALS[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   CRTCPAL1[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   MiscPAL1[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   MiscPAL2[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   CRTCPAL2_8BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCPAL2_16BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCPAL2_32BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD16  PatchPAL2[VIA_BIOS_MAX_NUM_TV_PATCH];
+} VIABIOSTV2TableRec, *VIABIOSTV2TablePtr;
+
+
+typedef struct _VIATV3MODETABLE {
+    CARD8   TVNTSC[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   CRTCNTSC1[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   MiscNTSC1[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   MiscNTSC2[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   CRTCNTSC2_8BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCNTSC2_16BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCNTSC2_32BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD16  PatchNTSC2[VIA_BIOS_MAX_NUM_TV_PATCH];
+    CARD16  RGBNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  YCbCrNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  SDTV_RGBNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  SDTV_YCbCrNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  DotCrawlNTSC[VIA_BIOS_NUM_TV_OTHER];
+    CARD8   TVPAL[VIA_BIOS_MAX_NUM_TV_REG];
+    CARD8   CRTCPAL1[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   MiscPAL1[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   MiscPAL2[VIA_BIOS_NUM_TV_SPECIAL_REG];
+    CARD8   CRTCPAL2_8BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCPAL2_16BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD8   CRTCPAL2_32BPP[VIA_BIOS_MAX_NUM_TV_CRTC];
+    CARD16  PatchPAL2[VIA_BIOS_MAX_NUM_TV_PATCH];
+    CARD16  RGBPAL[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  YCbCrPAL[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  SDTV_RGBPAL[VIA_BIOS_NUM_TV_OTHER];
+    CARD16  SDTV_YCbCrPAL[VIA_BIOS_NUM_TV_OTHER];
+} VIABIOSTV3TableRec, *VIABIOSTV3TablePtr;
+
+/*
+ * Former via_mode.h tables
+ *
+ */
+static const unsigned short BIOSVer = 0X10;
+/* Date: 04/15/03 */
+/* static char BIOSDate[] =
+   { 0X30, 0X34, 0X2F, 0X31, 0X35, 0X2F, 0X30, 0X33, 0 }; */
 
 static const unsigned short NumModes = 97;
 

@@ -35,8 +35,8 @@
 #define DRM_VIA_DEC_FUTEX       5
 
 #define VIAXVMC_MAJOR 0
-#define VIAXVMC_MINOR 6
-#define VIAXVMC_PL    1
+#define VIAXVMC_MINOR 7
+#define VIAXVMC_PL    0
 #define VIA_NUM_XVMC_ATTRIBUTES 6
 #define VIA_XVMC_VALID 0x80000000
 
@@ -79,6 +79,7 @@ typedef struct{
  */
 
 typedef struct {
+    unsigned int major,minor,pl;
     unsigned ctxNo;
     unsigned xvmc_port;
     drm_context_t drmcontext;
@@ -90,10 +91,10 @@ typedef struct {
     unsigned int sAreaOffset;
     unsigned int sAreaSize;
     unsigned int sAreaPrivOffset;
-    char busIdString[10];
-    unsigned int major,minor,pl;
+    char busIdString[20];
     ViaXvMCAttrHolder initAttrs;
     int useAGP;
+    int authenticated;
     unsigned pad;    
 } ViaXvMCCreateContextRec;
 

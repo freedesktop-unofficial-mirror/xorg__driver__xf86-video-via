@@ -88,6 +88,10 @@ are supported.
 .BI "Option \*qTVDotCrawl\*q \*q" boolean \*q
 Disable or enable dotcrawl.
 .TP
+.BI "Option \*qTVDeflicker\*q \*q" integer \*q
+Specify deflicker setting for TV output. Valid values are 0,1,2
+0) No deflicker, 1) 1:1:1 deflicker, 2) 1:2:1 deflicker.
+.TP
 .BI "Option \*qTVType\*q \*q" string \*q
 Specify TV output format. The driver currently supports "NTSC" and
 "PAL" timings only.
