@@ -20,7 +20,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_memory.c,v 1.4 2004/01/27 02:25:07 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_memory.c,v 1.5 2004/01/29 03:13:25 dawes Exp $ */
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -85,7 +85,7 @@ void VIAFreeLinear(VIAMemPtr mem)
 
 unsigned long VIAAllocLinear(VIAMemPtr mem, ScrnInfoPtr pScrn, unsigned long size)
 {
-#if defined(XF86DRI) || !defined(XFREE_44)
+#if defined(XF86DRI) || !defined(XFREE86_44)
 	VIAPtr  pVia = VIAPTR(pScrn);
 #endif
 	
@@ -114,7 +114,7 @@ unsigned long VIAAllocLinear(VIAMemPtr mem, ScrnInfoPtr pScrn, unsigned long siz
 	}
 #endif
 
-#ifdef XFREE_44
+#ifdef XFREE86_44
 	{
 		int depth = (pScrn->bitsPerPixel + 7) >> 3;
 		/* Make sure we don't truncate requested size */

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.25 2004/01/27 17:01:20 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.c,v 1.28 2004/02/08 17:57:10 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -537,7 +537,7 @@ static Bool VIAProbe(DriverPtr drv, int flags)
             {
                 pScrn->driverVersion = VIA_VERSION;
                 pScrn->driverName = DRIVER_NAME;
-                pScrn->name = DRIVER_NAME;
+                pScrn->name = "VIA";
                 pScrn->Probe = VIAProbe;
                 pScrn->PreInit = VIAPreInit;
                 pScrn->ScreenInit = VIAScreenInit;
@@ -2370,7 +2370,7 @@ static Bool VIAScreenInit(int scrnIndex, ScreenPtr pScreen,
     if (!pVia->NoAccel) {
         VIAInitAccel(pScreen);
     } 
-#ifdef XFREE_44
+#ifdef XFREE86_44
     else {
 	/*
 	 * This is needed because xf86InitFBManagerLinear in VIAInitLinear
@@ -2712,6 +2712,11 @@ static Bool VIACloseScreen(int scrnIndex, ScreenPtr pScreen)
             VIASETREG(0x440, 0x00000004);
         }
     }
+#ifdef XF86DRI
+    if (pVia->directRenderingEnabled) {
+	VIADRICloseScreen(pScreen);
+    }
+#endif
     if (pVia->AccelInfoRec) {
         XAADestroyInfoRec(pVia->AccelInfoRec);
         pVia->AccelInfoRec = NULL;

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_video.c,v 1.15 2004/01/05 00:34:17 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_video.c,v 1.17 2004/02/04 04:15:09 dawes Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -476,7 +476,11 @@ viaSetupImageVideoG(ScreenPtr pScreen)
         gviaPortPriv[i]->xv_portnum = i;
 
         /* gotta uninit this someplace */
+#ifdef XFREE86_44
         REGION_NULL(pScreen, &gviaPortPriv[i]->clip);
+#else
+	REGION_INIT(pScreen, &gviaPortPriv[i]->clip, NullBox, 1);
+#endif
     } /* End of for */
     viaResetVideo(pScrn);
     return adaptPtr[0];
@@ -513,13 +517,14 @@ RegionsEqual(RegionPtr A, RegionPtr B)
 }
 
 
-static unsigned long CreateSWOVSurface(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, int fourcc, short width, short height)
+static int CreateSWOVSurface(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, int fourcc, short width, short height)
 {
     VIAPtr  pVia = VIAPTR(pScrn);
     LPDDSURFACEDESC lpSurfaceDesc = &pPriv->SurfaceDesc;
+    unsigned long retCode;
 
     if (pVia->Video.VideoStatus & SWOV_SURFACE_CREATED)
-        return TRUE;
+        return Success;
 
     lpSurfaceDesc->dwWidth  = (unsigned long)width;
     lpSurfaceDesc->dwHeight = (unsigned long)height;
@@ -527,7 +532,8 @@ static unsigned long CreateSWOVSurface(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, 
 
     lpSurfaceDesc->dwFourCC = (unsigned long)fourcc;
 
-    VIAVidCreateSurface(pScrn, lpSurfaceDesc);
+    if (Success != (retCode = VIAVidCreateSurface(pScrn, lpSurfaceDesc)))
+	return retCode;
 
     pPriv->ddLock.dwFourCC = (unsigned long)fourcc;
 
@@ -541,7 +547,7 @@ static unsigned long CreateSWOVSurface(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, 
     
     pVia->Video.VideoStatus |= SWOV_SURFACE_CREATED|SW_VIDEO_ON;
     pVia->Video.dwAction = ACTION_SET_VIDEOSTATUS;
-    return TRUE;
+    return Success;
 }
 
 
@@ -986,6 +992,7 @@ viaPutImageG(
     VIAPtr  pVia = VIAPTR(pScrn);
     viaPortPrivPtr pPriv = (viaPortPrivPtr)data;
     vmmtr   viaVidEng = (vmmtr) pVia->VidMapBase;    
+    unsigned long retCode;
 /*    int i;
     BoxPtr pbox; */
 
@@ -1022,9 +1029,10 @@ viaPutImageG(
                 if ( (pPriv->old_src_w != src_w) || (pPriv->old_src_h != src_h) )
                     DestroySWOVSurface(pScrn, pPriv);
 
-                if ( !CreateSWOVSurface(pScrn, pPriv, id, width, height) )
+                if (Success != ( retCode = CreateSWOVSurface(pScrn, pPriv, id, width, height) ))
                 {
                    DBG_DD(ErrorF("             : Fail to Create SW Video Surface\n"));
+		   return retCode;
                 }
 
 

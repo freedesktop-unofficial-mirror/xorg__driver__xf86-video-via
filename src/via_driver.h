@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.10 2004/01/05 00:34:17 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_driver.h,v 1.13 2004/02/08 17:57:10 tsi Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -78,6 +78,12 @@
 #define VERSION_MINOR   1
 #define PATCHLEVEL      30
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
+
+#if XF86_VERSION_CURRENT < XF86_VERSION_NUMERIC(4,3,99,14,0)
+#undef XFREE86_44 
+#else
+#define XFREE86_44 1
+#endif
 
 #define VGAIN8(addr)        MMIO_IN8(pVia->MapBase+0x8000, addr)
 #define VGAIN16(addr)       MMIO_IN16(pVia->MapBase+0x8000, addr)
@@ -324,6 +330,7 @@ typedef struct _VIA {
     unsigned long 	agpHandle;
     unsigned long 	registerHandle;
     unsigned long 	agpAddr;
+    drmAddress          agpMappedAddr;
     unsigned char 	*agpBase;
     unsigned int 	agpSize;
     Bool 		IsPCI;
