@@ -331,7 +331,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 	case 24:
 	    break;
 	case 16:
-	    numConfigs = 16;
+	    numConfigs = 12;
 	    if (!(pConfigs = (__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),
 						   numConfigs)))
 		return FALSE;
@@ -351,7 +351,8 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 
 	    i = 0;
 	    for (accum = 0; accum <= 1; accum++) {
-    		for (stencil=0; stencil<=3; stencil++) {
+		/* 32bpp depth buffer disabled, as Mesa has limitations */
+    		for (stencil=0; stencil<=2; stencil++) {
     		    for (db = 0; db <= 1; db++) {
         		pConfigs[i].vid = -1;
         		pConfigs[i].class = -1;
@@ -395,11 +396,11 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
             			pConfigs[i].stencilSize = 0;
             			break;
         		    case 2:
-            			pConfigs[i].depthSize = 32;
+            			pConfigs[i].depthSize = 0;
             			pConfigs[i].stencilSize = 0;
             			break;
         		    case 3:
-            			pConfigs[i].depthSize = 0;
+            			pConfigs[i].depthSize = 32;
             			pConfigs[i].stencilSize = 0;
             			break;
         		}
@@ -429,7 +430,7 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 	break;
 	    
 	case 32:
-	    numConfigs = 16;
+	    numConfigs = 12;
 	    if (!(pConfigs = (__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),
 						   numConfigs)))
 		return FALSE;
@@ -449,7 +450,8 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
 
 	    i = 0;
 	    for (accum = 0; accum <= 1; accum++) {
-    		for (stencil=0; stencil<=3; stencil++) {
+		/* 32bpp depth buffer disabled, as Mesa has limitations */
+    		for (stencil=0; stencil<=2; stencil++) {
     		    for (db = 0; db <= 1; db++) {
         		pConfigs[i].vid = -1;
         		pConfigs[i].class = -1;
@@ -493,11 +495,11 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
             			pConfigs[i].stencilSize = 0;
             			break;
         		    case 2:
-            			pConfigs[i].depthSize = 32;
+            			pConfigs[i].depthSize = 0;
             			pConfigs[i].stencilSize = 0;
             			break;
         		    case 3:
-            			pConfigs[i].depthSize = 0;
+            			pConfigs[i].depthSize = 32;
             			pConfigs[i].stencilSize = 0;
             			break;
         		}
