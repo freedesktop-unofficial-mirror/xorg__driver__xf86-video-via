@@ -54,7 +54,7 @@ extern void GlxSetVisualConfigs(
 #define AGP_CMDBUF_SIZE (AGP_PAGE_SIZE * AGP_CMDBUF_PAGES)
 
 static char VIAKernelDriverName[] = "via";
-static char VIAClientDriverName[] = "via";
+static char VIAClientDriverName[] = "unichrome";
 int test_alloc_FB(ScreenPtr pScreen, VIAPtr pVia, int Size);
 int test_alloc_AGP(ScreenPtr pScreen, VIAPtr pVia, int Size);
 static Bool VIAInitVisualConfigs(ScreenPtr pScreen);
