@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.3 2003/08/27 15:16:12 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_priv.h,v 1.4 2003/12/17 18:57:18 dawes Exp $ */
 
 #ifndef _VIA_PRIV_H_
 #define _VIA_PRIV_H_ 1
@@ -6,34 +6,31 @@
 #include "ddmpeg.h"
 #include "via_common.h"
 
+#define MEM_BLOCKS		4
+
+typedef struct {
+    unsigned long   base;		/* Offset into fb */
+    int    pool;			/* Pool we drew from */
+    int    drm_fd;			/* Fd in DRM mode */
+    drmViaMem drm;			/* DRM management object */
+    int    slot;			/* Pool 3 slot */
+    void  *pVia;			/* VIA driver pointer */
+    FBLinearPtr linear;			/* X linear pool info ptr */
+} VIAMem;
+
+typedef VIAMem *VIAMemPtr;
+
+
+
 typedef struct  {
     unsigned long   gdwVideoFlagTV1;
     unsigned long   gdwVideoFlagSW;
     unsigned long   gdwVideoFlagMPEG;
     unsigned long   gdwAlphaEnabled;		/* For Alpha blending use*/
 
-#if 0    
-/* memory management */
-    ViaMMReq  SWMemRequest;
-    ViaMMReq  HQVMemRequest;
-/*ViaMMReq  MPEGMemRequest;
-  ViaMMReq  SUBPMemRequest;*/
-#endif
-    
-/* for DRM memory management */
-#ifdef XF86DRI
-    drmViaMem MPEGfbRequest;
-    drmViaMem SUBPfbRequest;
-    drmViaMem HQVfbRequest;
-    drmViaMem TV0fbRequest;
-    drmViaMem TV1fbRequest;
-    drmViaMem ALPHAfbRequest;
-    drmViaMem SWfbRequest;
-    drmViaMem drm_SWOV_fb;
-    drmViaMem drm_HQV_fb;
-    int  drm_SWOV_fd;
-    int  drm_HQV_fd;
-#endif
+    VIAMem SWOVMem;
+    VIAMem HQVMem;
+    VIAMem SWfbMem;
 
     DDPIXELFORMAT DPFsrc; 
     DDUPDATEOVERLAY UpdateOverlayBackup;    /* For HQVcontrol func use

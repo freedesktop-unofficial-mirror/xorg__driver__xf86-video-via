@@ -21,7 +21,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.4 2003/08/04 10:32:27 eich Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_accel.c,v 1.6 2003/12/17 19:01:59 dawes Exp $ */
 
 /*************************************************************************
  *
@@ -514,7 +514,32 @@ VIAInitAccel(ScreenPtr pScreen)
     AvailFBArea.y1 = 0;
     AvailFBArea.x2 = pScrn->displayWidth;
     AvailFBArea.y2 = (pVia->FBFreeEnd) / pVia->Bpl;
-    xf86InitFBManager(pScreen, &AvailFBArea);
+
+    /*
+     * The pixmap cache must stay within the lowest 2048 lines due
+     * to hardware blitting limits. The rest is available for offscreen
+     * allocations
+     */
+     
+    if(AvailFBArea.y2 > 2047)
+    {
+	unsigned long offset = 2048 * pVia->Bpl;
+	unsigned long size = (pVia->FBFreeEnd - offset);
+#ifdef XFREE_44	
+	int bpp = (pScrn->bitsPerPixel + 7) / 8;
+#endif
+	AvailFBArea.y2 = 2047;
+	xf86InitFBManager(pScreen, &AvailFBArea);
+#ifdef XFREE_44	
+	xf86InitFBManagerLinear(pScreen, offset/bpp, size/bpp);
+#else
+	VIAInitPool(pVia, offset, size);
+#endif	
+    }
+    else
+	xf86InitFBManager(pScreen, &AvailFBArea);
+    
+    
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 					 "Using %d lines for offscreen memory.\n",
 					 AvailFBArea.y2 - pScrn->virtualY ));
@@ -1208,4 +1233,3 @@ static void VIADisableClipping(ScrnInfoPtr pScrn)
 
     pVia->SavedCmd &= ~VIA_GEC_CLIP_ENABLE;
 }
-
