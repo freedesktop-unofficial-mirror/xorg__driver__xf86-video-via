@@ -65,9 +65,9 @@ static Bool VIADRIKernelInit(ScreenPtr pScreen, VIAPtr pVia);
 static Bool VIADRIMapInit(ScreenPtr pScreen, VIAPtr pVia);
 
 static Bool VIACreateContext(ScreenPtr pScreen, VisualPtr visual, 
-                   drmContext hwContext, void *pVisualConfigPriv,
+                   drm_context_t hwContext, void *pVisualConfigPriv,
                    DRIContextType contextStore);
-static void VIADestroyContext(ScreenPtr pScreen, drmContext hwContext,
+static void VIADestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
                    DRIContextType contextStore);
 static void VIADRISwapContext(ScreenPtr pScreen, DRISyncType syncType, 
                    DRIContextType readContextType, 
@@ -123,7 +123,7 @@ static Bool VIADRIAgpInit(ScreenPtr pScreen, VIAPtr pVia)
                  "[drm] agpAddr = 0x%08lx\n",pVia->agpAddr);
 		 
     pVIADRI->agp.size = pVia->agpSize;
-    if (drmAddMap(pVia->drmFD, (drmHandle)0,
+    if (drmAddMap(pVia->drmFD, (drm_handle_t)0,
                  pVIADRI->agp.size, DRM_AGP, 0, 
                  &pVIADRI->agp.handle) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -507,14 +507,14 @@ VIADRICloseScreen(ScreenPtr pScreen)
  */
 static Bool
 VIACreateContext(ScreenPtr pScreen, VisualPtr visual,
-          drmContext hwContext, void *pVisualConfigPriv,
+          drm_context_t hwContext, void *pVisualConfigPriv,
           DRIContextType contextStore)
 {
     return TRUE;
 }
 
 static void
-VIADestroyContext(ScreenPtr pScreen, drmContext hwContext, 
+VIADestroyContext(ScreenPtr pScreen, drm_context_t hwContext, 
            DRIContextType contextStore)
 {
 }
