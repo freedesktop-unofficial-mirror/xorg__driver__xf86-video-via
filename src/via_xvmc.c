@@ -45,8 +45,8 @@
 #include "xf86xvpriv.h"
 
 #include "xf86xvmc.h"
-#include "Xv.h"
-#include "XvMC.h"
+#include <X11/extensions/Xv.h>
+#include <X11/extensions/XvMC.h>
 #include "xaa.h"
 #include "xaalocal.h"
 #include "dixstruct.h"
