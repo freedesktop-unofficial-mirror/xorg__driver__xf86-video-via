@@ -51,7 +51,6 @@
 #include "xaalocal.h"
 #include "dixstruct.h"
 #include "via_xvmc.h"
-#include "dristruct.h"
 #include "dri.h"
 #include "via_xvpriv.h"
 #include "via_video.h"
