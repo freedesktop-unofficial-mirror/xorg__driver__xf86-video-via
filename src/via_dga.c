@@ -16,9 +16,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -246,7 +246,7 @@ VIADGASetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
         pScrn->bitsPerPixel = pVia->DGAOldBitsPerPixel;
         pScrn->depth = pVia->DGAOldDepth;
 
-        VIASwitchMode(index, pScrn->currentMode, 0);
+        pScrn->SwitchMode(index, pScrn->currentMode, 0);
         if (pVia->hwcursor)
             VIAShowCursor(pScrn);
 
@@ -276,7 +276,7 @@ VIADGASetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
         pScrn->displayWidth = pMode->bytesPerScanline /
                               (pMode->bitsPerPixel >> 3);
 
-        VIASwitchMode(index, pMode->mode, 0);
+        pScrn->SwitchMode(index, pMode->mode, 0);
     }
 
     return TRUE;
@@ -296,7 +296,7 @@ VIADGASetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
 {
     VIAPtr pVia = VIAPTR(pScrn);
 
-    VIAAdjustFrame(pScrn->pScreen->myNum, x, y, flags);
+    pScrn->AdjustFrame(pScrn->pScreen->myNum, x, y, flags);
     pVia->DGAViewportStatus = 0;  /* MGAAdjustFrame loops until finished */
 }
 

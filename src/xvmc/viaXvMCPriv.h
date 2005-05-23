@@ -55,12 +55,21 @@ extern Status _xvmc_destroy_subpicture(Display *dpy,
 				     that can answer RENDERING to a rendering 
 				     query*/
 
+typedef enum{
+  context_lowLevel,
+  context_mutex,
+  context_sAreaMap,
+  context_fbMap,
+  context_mmioMap,
+  context_context,
+  context_fd,
+  context_none
+} ContextRes;
 
 typedef struct{
     unsigned ctxNo;                 /* XvMC private context reference number */
     pthread_mutex_t ctxMutex;       /* Mutex for multi-threading. Not used */
     drm_context_t drmcontext;       /* The drm context */
-    CARD8 *fb_base;                 /* Absolute Base of frame-buffer */
     drm_handle_t fbOffset;          /* Handle to drm frame-buffer area */
     drm_handle_t mmioOffset;        /* Handle to drm mmio area */
     drm_handle_t sAreaOffset;       /* Handle to drm shared memory area */
@@ -71,7 +80,7 @@ typedef struct{
     drmAddress fbAddress;           /* Virtual address of frame buffer area */
     drmAddress mmioAddress;         /* Virtual address of mmio area */
     drmAddress sAreaAddress;        /* Virtual address of shared memory area */
-    char busIdString[10];           /* Busid of video card */
+    char busIdString[21];           /* Busid of video card */
     unsigned yStride;               /* Y stride of surfaces in this context */
     int fd;                         /* FD for connection to drm module */
     unsigned char intra_quantiser_matrix[64]; 
@@ -88,8 +97,6 @@ typedef struct{
     int chromaIntraLoaded;
     int chromaNonIntraLoaded;
     int haveDecoder;                     /* Does this context own decoder? */
-    int decTimeOut;                      /* Decoder has timed out and need a
-					    reset */
     int attribChanged;                   /* Attributes have changed and need to
 					    be uploaded to Xv at next frame
 					    display */
@@ -110,6 +117,8 @@ typedef struct{
     Drawable draw;                      /* Drawable to undisplay from */
     XvPortID port;                      /* Xv Port ID when displaying */
     int lastSrfDisplaying;
+    ContextRes resources;
+    CARD32 timeStamp;
 }ViaXvMCContext;
 
 typedef struct{
@@ -122,6 +131,8 @@ typedef struct{
     CARD32 palette[VIA_SUBPIC_PALETTE_SIZE]; /* YUV Palette */
     ViaXvMCContext *privContext;         /* Pointer to context private data */
     int ia44;                            /* IA44 or AI44 format */
+    int needsSync;
+    CARD32 timeStamp;
 }ViaXvMCSubPicture;
 
 
@@ -140,6 +151,9 @@ typedef struct{
     ViaXvMCContext *privContext;        /* XvMC context private part. */
     ViaXvMCSubPicture *privSubPic;      /* Subpicture to be blended when 
 					   displaying. NULL if none. */
+    int needsSync;
+    int syncMode;
+    CARD32 timeStamp;
 }ViaXvMCSurface;
 
 /*
@@ -175,10 +189,9 @@ extern void viaBlit(XvMCLowLevel *xl,unsigned bpp,unsigned srcBase,
 		    unsigned blitMode, unsigned color); 
 
 extern void viaVideoSWFlipLocked(XvMCLowLevel *xl, unsigned flags,
-				 int progressiveSequence,
-				 unsigned yOffs,
-				 unsigned uOffs,
-				 unsigned vOffs);
+				 int progressiveSequence);
+extern void viaVideoSetSWFLipLocked(XvMCLowLevel *xl,unsigned yOffs,unsigned uOffs,
+				    unsigned vOffs); 
 
 extern void viaVideoSubPictureLocked(XvMCLowLevel *xl,ViaXvMCSubPicture *pViaSubPic);
 extern void viaVideoSubPictureOffLocked(XvMCLowLevel *xl);

@@ -26,7 +26,7 @@
 #ifndef _VIA_XVMC_H
 #define _VIA_XVMC_H 1
 
-#include "via_dri.h"
+#include "via_drm.h"
 
 /*
  * This file contains the common definitions between the XvMC lib and the 
@@ -34,10 +34,9 @@
  * structure change is reflected also in a change in minor version number!!
  */ 
 
-#define DRM_VIA_DEC_FUTEX       5
 
 #define VIAXVMC_MAJOR 0
-#define VIAXVMC_MINOR 7
+#define VIAXVMC_MINOR 9
 #define VIAXVMC_PL    0
 #define VIA_NUM_XVMC_ATTRIBUTES 6
 #define VIA_XVMC_VALID 0x80000000
@@ -85,7 +84,6 @@ typedef struct {
     unsigned ctxNo;
     unsigned xvmc_port;
     drm_context_t drmcontext;
-    CARD8 *fbBase;
     unsigned int fbOffset;
     unsigned int fbSize;
     unsigned int mmioOffset;
@@ -97,6 +95,7 @@ typedef struct {
     ViaXvMCAttrHolder initAttrs;
     int useAGP;
     int authenticated;
+    unsigned chipId;
     unsigned pad;    
 } ViaXvMCCreateContextRec;
 

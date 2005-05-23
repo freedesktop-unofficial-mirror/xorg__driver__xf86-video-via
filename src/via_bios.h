@@ -17,9 +17,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -46,10 +46,11 @@
 #define     TVOUTPUT_YCBCR                  0x08
 #define     TVOUTPUT_SC                     0x16
 
-#define     VIA_NONETV                      0
-#define     VIA_VT1621                      1 /* TV2PLUS */
-#define     VIA_VT1622                      2 /* TV3 */
-#define     VIA_VT1623                      3 /* also VT1622A */
+#define  VIA_NONETV   0
+#define  VIA_VT1621   1 /* TV2PLUS */
+#define  VIA_VT1622   2 /* TV3 */
+#define  VIA_VT1623   3 /* also VT1622A */
+#define  VIA_VT1625   4 
 
 #define     VIA_TVNORMAL                    0
 #define     VIA_TVOVER                      1
@@ -68,6 +69,7 @@
 #define VIA_MEM_DDR266  0x04
 #define VIA_MEM_DDR333  0x05
 #define VIA_MEM_DDR400  0x06
+#define VIA_MEM_END     0x07
 #define VIA_MEM_NONE    0xFF
 
 /* Digital Output Bus Width */
@@ -80,10 +82,10 @@ typedef struct _VIABIOSINFO {
     Bool        CrtPresent;
     Bool        CrtActive;
 
-    CARD16      ModeIndex;
     CARD16      ResolutionIndex;
-    CARD16      Refresh;
-    CARD16      Clock; /* register value for the dotclock */
+    CARD32      Clock; /* register value for the dotclock */
+    Bool        ClockExternal;
+    CARD32      Bandwidth; /* available memory bandwidth */
 
     /* Panel/LCD entries */
     Bool        PanelPresent;
@@ -106,10 +108,8 @@ typedef struct _VIABIOSINFO {
     int         TVOutput;
     Bool        TVActive;
     I2CDevPtr   TVI2CDev;
-    CARD16	TVIndex;    
     int         TVType;
     Bool        TVDotCrawl;
-    int         TVVScan;
     int         TVDeflicker;
     CARD8       TVRegs[0xFF];
 
@@ -117,32 +117,39 @@ typedef struct _VIABIOSINFO {
     void (*TVSave) (ScrnInfoPtr pScrn);
     void (*TVRestore) (ScrnInfoPtr pScrn);
     Bool (*TVDACSense) (ScrnInfoPtr pScrn);
-    Bool (*TVModeValid) (ScrnInfoPtr pScrn, DisplayModePtr mode);
-    void (*TVModeI2C) (ScrnInfoPtr pScrn);
-    void (*TVModeCrtc) (ScrnInfoPtr pScrn);
+    ModeStatus (*TVModeValid) (ScrnInfoPtr pScrn, DisplayModePtr mode);
+    void (*TVModeI2C) (ScrnInfoPtr pScrn, DisplayModePtr mode);
+    void (*TVModeCrtc) (ScrnInfoPtr pScrn, DisplayModePtr mode);
     void (*TVPower) (ScrnInfoPtr pScrn, Bool On);
+    DisplayModePtr TVModes;
+    void (*TVPrintRegs) (ScrnInfoPtr pScrn);
 
 } VIABIOSInfoRec, *VIABIOSInfoPtr;
 
 /* Function prototypes */
-/* via_bios.c */
-void ViaVBEPrintBIOSVersion(ScrnInfoPtr pScrn);
-void ViaVBEPrintBIOSDate(ScrnInfoPtr pScrn);
-#ifdef HAVE_DEBUG
-CARD8 ViaVBEGetActiveDevice(ScrnInfoPtr pScrn);
-void ViaDumpVGAROM(ScrnInfoPtr pScrn);
-#endif /* HAVE_DEBUG */
+/* via_vbe.c */
+void ViaVbeAdjustFrame(int scrnIndex, int x, int y, int flags);
+Bool ViaVbeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
+Bool ViaVbeSaveRestore(ScrnInfoPtr pScrn, vbeSaveRestoreFunction function);
+Bool ViaVbeModePreInit(ScrnInfoPtr pScrn);
+void ViaVbeDPMS(ScrnInfoPtr pScrn, int mode, int flags);
+void ViaVbeDoDPMS(ScrnInfoPtr pScrn, int mode);
 
 /* via_mode.c */
 void ViaOutputsDetect(ScrnInfoPtr pScrn);
 Bool ViaOutputsSelect(ScrnInfoPtr pScrn);
-Bool ViaModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode, Bool Final);
+void ViaModesAttach(ScrnInfoPtr pScrn, MonPtr monitorp);
+CARD32 ViaGetMemoryBandwidth(ScrnInfoPtr pScrn);
+ModeStatus ViaValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags);
 void ViaModePrimary(ScrnInfoPtr pScrn, DisplayModePtr mode);
 void ViaModeSecondary(ScrnInfoPtr pScrn, DisplayModePtr mode);
 void ViaLCDPower(ScrnInfoPtr pScrn, Bool On);
 void ViaTVPower(ScrnInfoPtr pScrn, Bool On);
 void ViaTVSave(ScrnInfoPtr pScrn);
 void ViaTVRestore(ScrnInfoPtr pScrn);
+#ifdef HAVE_DEBUG
+void ViaTVPrintRegs(ScrnInfoPtr pScrn);
+#endif
 
 /* in via_bandwidth.c */
 void ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode);

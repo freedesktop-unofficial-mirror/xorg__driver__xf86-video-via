@@ -33,11 +33,6 @@
  */
 
 /*
- * There's no reason for this to be known outside of via_id.o
- * Only a pointer to an single entry will ever be used outside.
- *
- */
-/*
  * Known missing devices:
  * cle266:
  * Biostar M6VLQ Grand
@@ -87,7 +82,12 @@
  * Soyo SY-P4VM800
  *
  */
-struct ViaCardIdStruct ViaCardId[] = {
+/*
+ * There's no reason for this to be known outside of via_id.o
+ * Only a pointer to an single entry will ever be used outside.
+ *
+ */
+static struct ViaCardIdStruct ViaCardId[] = {
     /* CLE266 */
     {"ECS G320",                              VIA_CLE266,  0x1019, 0xB320, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
     {"VIA EPIA M/MII/...",                    VIA_CLE266,  0x1106, 0x3122, VIA_DEVICE_CRT | VIA_DEVICE_TV},
@@ -116,11 +116,15 @@ struct ViaCardIdStruct ViaCardId[] = {
     {"Shuttle FX83",                          VIA_K8M800,  0x1297, 0xF683, VIA_DEVICE_CRT | VIA_DEVICE_TV},
     {"Sharp Actius AL27",                     VIA_K8M800,  0x13BD, 0x1044, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
     {"Giga-byte GA-K8VM800M",                 VIA_K8M800,  0x1458, 0xD000, VIA_DEVICE_CRT},
+    {"MSI K8M Neo-V",                         VIA_K8M800,  0x1462, 0x0320, VIA_DEVICE_CRT},
     {"MSI K8MM-ILSR",                         VIA_K8M800,  0x1462, 0x7410, VIA_DEVICE_CRT},
+    {"Abit KV-80",                            VIA_K8M800,  0x147B, 0x1419, VIA_DEVICE_CRT},
+    {"Averatec 54xx",                         VIA_K8M800,  0x1509, 0x3930, VIA_DEVICE_CRT | VIA_DEVICE_LCD},
     {"Biostar K8VGA-M",                       VIA_K8M800,  0x1565, 0x1203, VIA_DEVICE_CRT},
     /* PM800 */
-    {"Biostar P4VMA-M",                       VIA_PM800,   0x1565, 0x1202, VIA_DEVICE_CRT},
     {"ECS PM800-M2",                          VIA_PM800,   0x1106, 0x3118, VIA_DEVICE_CRT}, /* VIA/PM800 */
+    {"Biostar P4VMA-M",                       VIA_PM800,   0x1565, 0x1202, VIA_DEVICE_CRT},
+    {"Fujitsu/Siemens Amilo Pro V2010",       VIA_PM800,   0x1734, 0x1078, VIA_DEVICE_CRT | VIA_DEVICE_LCD | VIA_DEVICE_TV},
     /* keep this */
     {NULL,                                    VIA_UNKNOWN, 0x0000, 0x0000, VIA_DEVICE_NONE}
 };

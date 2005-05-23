@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 The Unichrome Project  [unichrome.sf.net]
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
@@ -17,9 +17,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -67,7 +67,7 @@
 #define DRIVER_NAME     "via"
 #define VERSION_MAJOR   0
 #define VERSION_MINOR   1
-#define PATCHLEVEL      30
+#define PATCHLEVEL      31
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
 #define VIA_MAX_ACCEL_X         (2047)
@@ -143,6 +143,15 @@ typedef struct{
     int status;
 } ViaCBuffer;
 
+typedef struct{
+    /* textMode */
+    CARD8 *state, *pstate; /* SVGA state */
+    int statePage, stateSize, stateMode;
+
+    /* vbe version */
+    int major, minor;
+} ViaVbeModeInfo;
+
 typedef struct _VIA {
     VIARegRec           SavedReg;
     xf86CursorInfoPtr   CursorInfoRec;
@@ -191,8 +200,11 @@ typedef struct _VIA {
     int                 Chipset;
     int                 ChipId;
     int                 ChipRev;
-    vbeInfoPtr          pVbe;
     int                 EntityIndex;
+
+    /* vbe */
+    vbeInfoPtr          pVbe;
+    ViaVbeModeInfo      vbeMode;
 
     /* Support for shadowFB and rotation */
     unsigned char*      ShadowPtr;
@@ -306,8 +318,9 @@ typedef struct
 } VIAEntRec, *VIAEntPtr;
 
 /* Prototypes. */
-void VIAAdjustFrame(int scrnIndex, int y, int x, int flags);
-Bool VIASwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
+#ifdef XF86DRI
+void VIAInitialize3DEngine(ScrnInfoPtr pScrn);
+#endif 
 
 /* In via_cursor.c. */
 Bool VIAHWCursorInit(ScreenPtr pScreen);
@@ -323,12 +336,7 @@ void VIAAccelSync(ScrnInfoPtr);
 void ViaVQDisable(ScrnInfoPtr pScrn);
 
 /* In via_shadow.c */
-void VIAPointerMoved(int index, int x, int y);
-void VIARefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-void VIARefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-void VIARefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-void VIARefreshArea24(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-void VIARefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+void ViaShadowFBInit(ScrnInfoPtr pScrn, ScreenPtr pScreen);
 
 /* In via_dga.c */
 Bool VIADGAInit(ScreenPtr);
@@ -336,55 +344,11 @@ Bool VIADGAInit(ScreenPtr);
 /*In via_video.c*/
 void viaInitVideo(ScreenPtr pScreen);
 void viaExitVideo(ScrnInfoPtr pScrn);
-void viaResetVideo(ScrnInfoPtr pScrn);
 void viaSaveVideo(ScrnInfoPtr pScrn);
 void viaRestoreVideo(ScrnInfoPtr pScrn);
-void viaStopSWOVerlay(ScrnInfoPtr pScrn);
-int viaGetPortAttributeG(ScrnInfoPtr, Atom ,INT32 *, pointer);
-int viaSetPortAttributeG(ScrnInfoPtr, Atom, INT32, pointer);
-int viaPutImageG( ScrnInfoPtr, short, short, short, short, short, short, 
-		  short, short,int, unsigned char*, short, short, Bool, 
-		  RegionPtr, pointer);
 void viaSetColorSpace(VIAPtr pVia, int hue, int saturation, int brightness, int contrast,
 		      Bool reset);
-
-/* in via_overlay.c */
-
-BOOL viaOverlayGetV1V3Format(VIAPtr pVia, int vport,
-                             unsigned long videoFlag, LPDDPIXELFORMAT pPF,
-                             unsigned long * pVidCtl, unsigned long * pHQVCtl);
-
-unsigned long viaOverlayGetSrcStartAddress(VIAPtr pVia, unsigned long videoFlag,
-                                           RECTL rSrc, RECTL rDest, unsigned long srcPitch,
-                                           LPDDPIXELFORMAT pPF,unsigned long * pHQVoffset);
-
-unsigned long viaOverlayHQVCalcZoomWidth(VIAPtr pVia,
-                                         unsigned long videoFlag,
-                                         unsigned long srcWidth,
-                                         unsigned long dstWidth,
-                                         unsigned long * pZoomCtl,
-                                         unsigned long * pMiniCtl,
-                                         unsigned long * pHQVfilterCtl,
-                                         unsigned long * pHQVminiCtl,
-                                         unsigned long * lpHQVzoomflag);
-
-unsigned long viaOverlayHQVCalcZoomHeight(VIAPtr pVia,
-                                          unsigned long srcHeight,
-                                          unsigned long dstHeight,
-                                          unsigned long * pZoomCtl,
-                                          unsigned long * pMiniCtl,
-                                          unsigned long * pHQVfilterCtl,
-                                          unsigned long * pHQVminiCtl,
-                                          unsigned long * pHQVzoomflag);
-
-void viaOverlayGetDisplayCount(VIAPtr pVia, unsigned long videoFlag, LPDDPIXELFORMAT pPF,
-                               unsigned long srcWidth, unsigned long * pDisplayCountW);
-
-void viaCalculateVideoColor(VIAPtr pVia, int hue, int saturation, 
-                            int brightness, int contrast,Bool reset,
-                            CARD32 *col1,CARD32 *col2);
-
-
+void VIAVidAdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 
 /* In via_memory.c */
 void VIAFreeLinear(VIAMemPtr);
@@ -395,18 +359,14 @@ void VIAInitLinear(ScreenPtr pScreen);
 
 #ifdef XF86DRI
 /* Basic init and exit functions */
-void ViaInitXVMC(ScreenPtr);    
-void ViaCleanupXVMC(ScreenPtr);
+void ViaInitXVMC(ScreenPtr pScreen);    
+void ViaCleanupXVMC(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr *XvAdaptors, int XvAdaptorCount);
+int viaXvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt);
+
 /* Returns the size of the fake Xv Image used as XvMC command buffer to the X server*/
 unsigned long viaXvMCPutImageSize(ScrnInfoPtr pScrn);
-int viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute, 
-				INT32 value,pointer data);
-int viaXvMCInitXv(ScrnInfoPtr pScrn, pointer data);
-int viaXvMCInterceptPutImage( ScrnInfoPtr, short, short, short, short, short, 
-			      short, short, short,int, unsigned char*, short, 
-			      short, Bool, RegionPtr, pointer);
-int viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute, 
-				   INT32 *value,pointer data);
+
+
 
 #endif
 

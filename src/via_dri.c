@@ -16,9 +16,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 #include "xf86.h"
@@ -34,7 +34,7 @@
 #include "sarea.h"
 
 #include "via_driver.h"
-#include "via_common.h"
+#include "via_drm.h"
 #include "via_dri.h"
 #include "via_id.h"
 #include "xf86drm.h"
@@ -122,7 +122,7 @@ VIADRIRingBufferCleanup(ScrnInfoPtr pScrn)
     VIADRIPtr pVIADRI = pVia->pDRIInfo->devPrivate;
 
     if (pVIADRI->ringBufActive) {
-	drmViaDmaInit ringBufInit;
+	drm_via_dma_init_t ringBufInit;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		   "[drm] Cleaning up DMA ring-buffer.\n");
@@ -146,7 +146,7 @@ VIADRIRingBufferInit(ScrnInfoPtr pScrn)
 	return TRUE;
 
     if (pVia->agpEnable) {
-	drmViaDmaInit ringBufInit;
+	drm_via_dma_init_t ringBufInit;
 	drmVersionPtr drmVer;
 
 	if (NULL == (drmVer = drmGetVersion(pVia->drmFD))) {
@@ -264,11 +264,11 @@ static Bool VIADRIAgpInit(ScreenPtr pScreen, VIAPtr pVia)
                 "[drm] agp physical addr = 0x%08lx\n", agp_phys);
     
     {
-	drmViaAgp agp;
+	drm_via_agp_t agp;
 	agp.offset = 0;
 	agp.size = AGP_SIZE-AGP_CMDBUF_SIZE;
 	if (drmCommandWrite(pVia->drmFD, DRM_VIA_AGP_INIT, &agp,
-			    sizeof(drmViaAgp)) < 0) {
+			    sizeof(drm_via_agp_t)) < 0) {
 	    drmUnmap(agpaddr,pVia->agpSize);
 	    drmRmMap(pVia->drmFD,pVIADRI->agp.handle);
 	    drmAgpUnbind(pVia->drmFD, pVia->agpHandle);
@@ -290,12 +290,12 @@ static Bool VIADRIFBInit(ScreenPtr pScreen, VIAPtr pVia)
     pVIADRI->fbSize = pVia->videoRambytes;
     
     {
-	drmViaFb fb;
+	drm_via_fb_t fb;
 	fb.offset = FBOffset;
 	fb.size = FBSize;
 	
 	if (drmCommandWrite(pVia->drmFD, DRM_VIA_FB_INIT, &fb,
-			    sizeof(drmViaFb)) < 0) {
+			    sizeof(drm_via_fb_t)) < 0) {
 	    xf86DrvMsg(pScreen->myNum, X_ERROR,
 		       "[drm] failed to init frame buffer area\n");
 	    return FALSE;
@@ -545,6 +545,9 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     DRIInfoPtr pDRIInfo;
     VIADRIPtr pVIADRI;
 
+    /* if symbols or version check fails, we still want this to be NULL */
+    pVia->pDRIInfo = NULL;
+
     /* Check that the GLX, DRI, and DRM modules have been loaded by testing
     * for canonical symbols in each module. */
     if (!xf86LoaderCheckSymbol("GlxSetVisualConfigs")) return FALSE;
@@ -571,11 +574,11 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
         }
     }
 
-    pDRIInfo = DRICreateInfoRec();
+    pVia->pDRIInfo = DRICreateInfoRec();
+    if (!pVia->pDRIInfo)
+	return FALSE;
     
-    if (!pDRIInfo) return FALSE;
-    
-    pVia->pDRIInfo = pDRIInfo;
+    pDRIInfo = pVia->pDRIInfo;
     pDRIInfo->drmDriverName = VIAKernelDriverName;
     pDRIInfo->clientDriverName = VIAClientDriverName;
     pDRIInfo->busIdString = xalloc(64);
@@ -586,7 +589,7 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->ddxDriverMajorVersion = VIA_DRI_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion = VIA_DRI_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion = PATCHLEVEL;
-    pDRIInfo->frameBufferPhysicalAddress = pVia->FrameBufferBase;
+    pDRIInfo->frameBufferPhysicalAddress = (pointer) pVia->FrameBufferBase;
     pDRIInfo->frameBufferSize = pVia->videoRambytes;  
   
     pDRIInfo->frameBufferStride = (pScrn->displayWidth *
@@ -610,8 +613,9 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     * in the SAREA header
     */
     if (sizeof(XF86DRISAREARec)+sizeof(VIASAREAPriv) > SAREA_MAX) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Data does not fit in SAREA\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Data does not fit in SAREA\n");
+	DRIDestroyInfoRec(pVia->pDRIInfo);
+	pVia->pDRIInfo = NULL;
 	return FALSE;
     }
     pDRIInfo->SAREASize = SAREA_MAX;
@@ -619,7 +623,7 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
 
     if (!(pVIADRI = (VIADRIPtr)xcalloc(sizeof(VIADRIRec),1))) {
 	DRIDestroyInfoRec(pVia->pDRIInfo);
-	pVia->pDRIInfo=0;
+	pVia->pDRIInfo = NULL;
 	return FALSE;
     }
     pDRIInfo->devPrivate = pVIADRI;
@@ -637,9 +641,9 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 	    "[dri] DRIScreenInit failed.  Disabling DRI.\n");
 	xfree(pDRIInfo->devPrivate);
-	pDRIInfo->devPrivate=0;
+	pDRIInfo->devPrivate = NULL;
 	DRIDestroyInfoRec(pVia->pDRIInfo);
-	pVia->pDRIInfo=0;
+	pVia->pDRIInfo = NULL;
 	pVia->drmFD = -1;
 	return FALSE;
     }
@@ -694,10 +698,10 @@ VIADRICloseScreen(ScreenPtr pScreen)
 	if ((pVIADRI = (VIADRIPtr) pVia->pDRIInfo->devPrivate)) {
 	    VIADRIIrqExit(pScrn, pVIADRI);
     	    xfree(pVIADRI);
-    	    pVia->pDRIInfo->devPrivate=0;
+    	    pVia->pDRIInfo->devPrivate = NULL;
 	}
 	DRIDestroyInfoRec(pVia->pDRIInfo);
-	pVia->pDRIInfo=0;
+	pVia->pDRIInfo = NULL;
     }
     
     if (pVia->pVisualConfigs) {
@@ -825,8 +829,8 @@ VIADRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 /* Initialize the kernel data structures. */
 static Bool VIADRIKernelInit(ScreenPtr pScreen, VIAPtr pVia)
 {
-    drmViaInit drmInfo;
-    memset(&drmInfo, 0, sizeof(drmViaInit));
+    drm_via_init_t drmInfo;
+    memset(&drmInfo, 0, sizeof(drm_via_init_t));
     drmInfo.func = VIA_INIT_MAP;
     drmInfo.sarea_priv_offset   = sizeof(XF86DRISAREARec);
     drmInfo.fb_offset           = pVia->FrameBufferBase;
@@ -837,7 +841,7 @@ static Bool VIADRIKernelInit(ScreenPtr pScreen, VIAPtr pVia)
 	drmInfo.agpAddr = (CARD32)pVia->agpAddr;
 
 	if ((drmCommandWrite(pVia->drmFD, DRM_VIA_MAP_INIT,&drmInfo,
-			     sizeof(drmViaInit))) < 0)
+			     sizeof(drm_via_init_t))) < 0)
 	    return FALSE;
 	     
 

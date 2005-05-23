@@ -83,6 +83,10 @@ typedef struct{
     int xvmc_port;
     ViaXvMCAttrHolder xvAttr;
     int newAttribute;
+
+    SetPortAttributeFuncPtr SetPortAttribute;
+    GetPortAttributeFuncPtr GetPortAttribute;
+    PutImageFuncPtr PutImage;
 }ViaXvMCXVPriv;
     
     
@@ -106,8 +110,13 @@ static void ViaXvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf);
 static int ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSurf,
                                int *num_priv, long **priv );
 static void ViaXvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp);
-
-
+static int viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute, 
+				       INT32 value,pointer data);
+static int viaXvMCInterceptPutImage(ScrnInfoPtr, short, short, short, short, short, 
+				    short, short, short,int, unsigned char*, short, 
+				    short, Bool, RegionPtr, pointer);
+static int viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute, 
+					  INT32 *value,pointer data);
 /*
  * Init and clean up the screen private parts of XvMC.
  */
@@ -128,7 +137,9 @@ static void initViaXvMC(ViaXvMCPtr vXvMC)
 
 }
     
-static void cleanupViaXvMC(ViaXvMCPtr vXvMC) 
+static void 
+cleanupViaXvMC(ViaXvMCPtr vXvMC, XF86VideoAdaptorPtr *XvAdaptors, 
+	       int XvAdaptorCount)
 {
     unsigned i;
 
@@ -306,7 +317,8 @@ static void mpegDisable(VIAPtr pVia,CARD32 val)
 }
 
 
-void ViaInitXVMC(ScreenPtr pScreen)
+void
+ViaInitXVMC(ScreenPtr pScreen)
 {
   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
   VIAPtr pVia = VIAPTR(pScrn);
@@ -315,10 +327,21 @@ void ViaInitXVMC(ScreenPtr pScreen)
   char *bID;
   drmVersionPtr drmVer;
 
-  if (pVia->XvMCEnabled)
-      return;
+  pVia->XvMCEnabled = 0;
 
-  if(!pVia->directRenderingEnabled) {
+  if (!(pVia->Chipset == VIA_CLE266) && !(pVia->Chipset == VIA_K8M800)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+		 "[XvMC] Not supported. Only on CLE266 and K8M800.\n");
+      return;
+  }
+
+  if (sizeof(unsigned long) == 8) {
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+		 "[XvMC] XvMC libs are not 64 bit clean. Disabling XvMC.\n");
+      return;
+  }
+      
+  if (!pVia->directRenderingEnabled) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "[XvMC] Cannot use XvMC without DRI!\n");
       return;
@@ -392,30 +415,38 @@ void ViaInitXVMC(ScreenPtr pScreen)
   saPriv=(ViaXvMCSAreaPriv *) DRIGetSAREAPrivate(pScreen);
   saPriv->XvMCCtxNoGrabbed = ~0;
 
-  XVMC_DECODER_FUTEX(saPriv)->lock = 0;
+  XVMCLOCKPTR(saPriv,UNICHROME_LOCK_DECODER1)->lock = 0;
 
   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[XvMC] Initialized XvMC extension.\n");
   pVia->XvMCEnabled = 1;
 }
 
-void ViaCleanupXVMC(ScreenPtr pScreen) 
+void ViaCleanupXVMC(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr *XvAdaptors, 
+		    int XvAdaptorCount)
 {
-  
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     VIAPtr pVia = VIAPTR(pScrn);
     ViaXvMCPtr vXvMC = &(pVia->xvmc);
-   
+    int i,j;
+
     if (pVia->XvMCEnabled) {
 	mpegDisable(pVia,0);
 	drmRmMap(pVia->drmFD,vXvMC->mmioBase); 
 	drmRmMap(pVia->drmFD,vXvMC->fbBase); 
-	cleanupViaXvMC(vXvMC);
+	cleanupViaXvMC(vXvMC, XvAdaptors, XvAdaptorCount);
     }
+    for (i=0; i<XvAdaptorCount; ++i) {
+	for (j=0; j<XvAdaptors[i]->nPorts; ++j) {
+	    viaPortPrivPtr pPriv = XvAdaptors[i]->pPortPrivates[j].ptr;
+	    if (pPriv->xvmc_priv)
+		xfree(pPriv->xvmc_priv);
+	}
+    }    
     pVia->XvMCEnabled = 0;
 }
 
-int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
-                            int *num_priv, long **priv )
+static int
+ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
+		      int *num_priv, long **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -480,7 +511,6 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
   cPriv->drmCtx = contextRec->drmcontext;
 
   authenticated = (drmAuthMagic(pVia->drmFD, pContext->flags) == 0);
-  contextRec->fbBase = (CARD8 *)pVia->FrameBufferBase;
 
   /*
    * Export framebuffer and mmio to non-root clients.
@@ -500,8 +530,11 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
   contextRec->pl = VIAXVMC_PL;
   strncpy (contextRec->busIdString,pDRIInfo->busIdString, 20);
   contextRec->initAttrs = vx->xvAttr; 
-  contextRec->useAGP = pViaDRI->ringBufActive;
+  contextRec->useAGP = pViaDRI->ringBufActive && 
+	((pVia->Chipset == VIA_CLE266) || 
+	 (pVia->Chipset == VIA_KM400));	
   contextRec->authenticated = authenticated;
+  contextRec->chipId = pVia->ChipId;
   vXvMC->nContexts++;
   vXvMC->contexts[ctxNo] = pContext->context_id;
   vXvMC->cPrivs[ctxNo] = cPriv;
@@ -510,8 +543,9 @@ int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 }
 
 
-int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
-                           int *num_priv, long **priv )
+static int
+ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
+		      int *num_priv, long **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -530,9 +564,9 @@ int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
   if(!sPriv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-        "[XvMC] ViaXvMCCreateSurface: Unable to allocate memory!\n");
-    *num_priv = 0;
-    return BadAlloc;
+		 "[XvMC] ViaXvMCCreateSurface: Unable to allocate memory!\n");
+      *num_priv = 0;
+      return BadAlloc;
   }
 
   numBuffers = 1;
@@ -564,10 +598,10 @@ int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
   if(!*priv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-        "[XvMC] ViaXvMCCreateSurface: Unable to allocate memory!\n");
-    *num_priv = 0;
-    xfree(sPriv);
-    return BadAlloc;
+		 "[XvMC] ViaXvMCCreateSurface: Unable to allocate memory!\n");
+      *num_priv = 0;
+      xfree(sPriv);
+      return BadAlloc;
   }
 
   for (srfNo = 0; srfNo < VIA_XVMC_MAX_SURFACES; ++srfNo) {
@@ -606,8 +640,9 @@ int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
   return Success;
 }
 
-int ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
-                              int *num_priv, long **priv )
+static int
+ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
+			 int *num_priv, long **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -627,18 +662,18 @@ int ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
   if(!sPriv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
         "[XvMC] ViaXvMCCreateSubpicture: Unable to allocate memory!\n");
-    *num_priv = 0;
-    return BadAlloc;
+      *num_priv = 0;
+      return BadAlloc;
   }
 
   *priv = (long *)xcalloc(3,sizeof(long));
 
   if(!*priv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-        "[XvMC] ViaXvMCCreateSubpicture: Unable to allocate memory!\n");
-    *num_priv = 0;
-    xfree(sPriv);
-    return BadAlloc;
+		 "[XvMC] ViaXvMCCreateSubpicture: Unable to allocate memory!\n");
+      *num_priv = 0;
+      xfree(sPriv);
+      return BadAlloc;
   }
   
   *num_priv = 2;
@@ -726,7 +761,7 @@ static void ViaXvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 	    DRM_CAS(&(sAPriv->XvMCDisplaying[vx->xvmc_port]),
 		    i|VIA_XVMC_VALID,0,__ret);
 	    if (!__ret) 
-		viaStopSWOVerlay(pScrn);		
+		ViaOverlayHide(pScrn);		
 	}
 
 	VIAFreeLinear(&(vXvMC->sPrivs[i]->memory_ref));
@@ -820,46 +855,58 @@ static int viaXvMCSetDisplayLock(ScrnInfoPtr pScrn, ViaXvMCXVPriv *vx)
     return 0;
 }
 
-int viaXvMCInitXv(ScrnInfoPtr pScrn, pointer data) 
+
+int viaXvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt) 
 {
-    viaPortPrivPtr pPriv = (viaPortPrivPtr) data;
+    viaPortPrivPtr pPriv; 
     ViaXvMCXVPriv *vx;
-    unsigned i;
+    unsigned i,j;
+
+    for (j=0; j < XvAdapt->nPorts; ++j) {
+	pPriv= (viaPortPrivPtr) XvAdapt->pPortPrivates[j].ptr;
 	
+	if (NULL == (pPriv->xvmc_priv = xcalloc(1,sizeof(ViaXvMCXVPriv)))) {
+	    return BadAlloc;
+	}
 
-    if (NULL == (pPriv->xvmc_priv = xcalloc(1,sizeof(ViaXvMCXVPriv)))) {
-	return BadAlloc;
+	for (i=0; i < VIA_NUM_XVMC_ATTRIBUTES; ++i) {
+	    attrAtoms[i] = MAKE_ATOM(attrXvMC[i]);
+	}
+
+	vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
+
+	vx->ctxDisplaying = 0;
+	vx->xvAttr.numAttr = VIA_NUM_XVMC_ATTRIBUTES;
+	vx->xvmc_port = -1;
+	vx->newAttribute = 1;
+
+	/* set up wrappers */
+	vx->GetPortAttribute = XvAdapt->GetPortAttribute;
+	vx->SetPortAttribute = XvAdapt->SetPortAttribute;
+	vx->PutImage = XvAdapt->PutImage;
+
+	XvAdapt->GetPortAttribute = viaXvMCInterceptXvGetAttribute;
+	XvAdapt->SetPortAttribute = viaXvMCInterceptXvAttribute;
+	XvAdapt->PutImage = viaXvMCInterceptPutImage; 
+
+	for (i = 0; i < VIA_NUM_XVMC_ATTRIBUTES; ++i) {
+	    vx->xvAttr.attributes[i].attribute = attrAtoms[i];
+	    vx->xvAttr.attributes[i].value = 0;
+	    vx->GetPortAttribute( pScrn, attrAtoms[i] , 
+				  &(vx->xvAttr.attributes[i].value), pPriv);
+	}   
     }
-
-    for (i=0; i < VIA_NUM_XVMC_ATTRIBUTES; ++i) {
-      attrAtoms[i] = MAKE_ATOM(attrXvMC[i]);
-    }
-
-    vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
-
-    vx->ctxDisplaying = 0;
-    vx->xvAttr.numAttr = VIA_NUM_XVMC_ATTRIBUTES;
-    vx->xvmc_port = -1;
-    vx->newAttribute = 1;
-
-    for (i = 0; i < VIA_NUM_XVMC_ATTRIBUTES; ++i) {
-	vx->xvAttr.attributes[i].attribute = attrAtoms[i];
-	vx->xvAttr.attributes[i].value = 0;
-	viaGetPortAttributeG( pScrn, attrAtoms[i] , 
-			      &(vx->xvAttr.attributes[i].value), data);
-    }   
     return Success;
 }
 
-int viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute, 
-				INT32 value,pointer data) 
+static int 
+viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute, 
+			    INT32 value,pointer data) 
 {
     unsigned i;
-
     viaPortPrivPtr pPriv = (viaPortPrivPtr) data;
     ViaXvMCXVPriv *vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
-    VIAPtr  pVia = VIAPTR(pScrn); 
-    if (pVia->XvMCEnabled) {
+    if (VIAPTR(pScrn)->XvMCEnabled) {
 	for (i=0; i< vx->xvAttr.numAttr; ++i) {
 	    if (vx->xvAttr.attributes[i].attribute == attribute) {
 		vx->xvAttr.attributes[i].value = value;
@@ -871,18 +918,18 @@ int viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute,
 	    }
 	}
     }
-    return viaSetPortAttributeG( pScrn, attribute, value, data);
+    return vx->SetPortAttribute(pScrn, attribute, value, data);
 }
 
-int viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute, 
+static int 
+viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute, 
 				   INT32 *value,pointer data) 
 {
     unsigned i;
-
     viaPortPrivPtr pPriv = (viaPortPrivPtr) data;
     ViaXvMCXVPriv *vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
-    VIAPtr  pVia = VIAPTR(pScrn); 
-    if (pVia->XvMCEnabled) {    
+
+    if (VIAPTR(pScrn)->XvMCEnabled) {
 	for (i=0; i< vx->xvAttr.numAttr; ++i) {
 	    if (vx->xvAttr.attributes[i].attribute == attribute) {
 		*value = vx->xvAttr.attributes[i].value;
@@ -890,59 +937,58 @@ int viaXvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute,
 	    }
 	}
     }
-    return viaGetPortAttributeG( pScrn, attribute, value, data);
+
+    return vx->GetPortAttribute( pScrn, attribute, value, data);
 }
 
     
 static int viaXvMCDisplayAttributes(ScrnInfoPtr pScrn, 
-				    const ViaXvMCAttrHolder *ah, pointer data) 
+				    const ViaXvMCAttrHolder *ah, viaPortPrivPtr pPriv) 
 {
-
+    ViaXvMCXVPriv *vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
     unsigned i;
     int ret;
 
     for (i=0; i< ah->numAttr; ++i) {
-	ret = viaSetPortAttributeG( pScrn, ah->attributes[i].attribute, 
-				    ah->attributes[i].value, data);
+	ret = vx->SetPortAttribute(pScrn, ah->attributes[i].attribute, 
+				   ah->attributes[i].value, pPriv);
 	if (ret) return ret;
     }
     return Success;
 }
    
 
-int viaXvMCInterceptPutImage( ScrnInfoPtr pScrn,short src_x, short src_y,
-			      short drw_x, short drw_y, short src_w, 
-			      short src_h,short drw_w, short drw_h, 
-			      int id, unsigned char* buf, short width, 
-			      short height, Bool sync, RegionPtr clipBoxes, 
-			      pointer data)
-{ 
-    ViaXvMCCommandBuffer *vXvMCData; 
+static int
+viaXvMCInterceptPutImage( ScrnInfoPtr pScrn,short src_x, short src_y,
+			  short drw_x, short drw_y, short src_w, 
+			  short src_h,short drw_w, short drw_h, 
+			  int id, unsigned char* buf, short width, 
+			  short height, Bool sync, RegionPtr clipBoxes, 
+			  pointer data)
+{
     viaPortPrivPtr pPriv = (viaPortPrivPtr) data;
     ViaXvMCXVPriv *vx = (ViaXvMCXVPriv *) pPriv->xvmc_priv;
-    VIAPtr  pVia = VIAPTR(pScrn); 
-    if (pVia->XvMCEnabled) {
-	if (FOURCC_VIA == id) {
+
+    if (VIAPTR(pScrn)->XvMCEnabled) {
+	if (FOURCC_XVMC == id) {
 	    volatile ViaXvMCSAreaPriv *sAPriv;
-	    vXvMCData = (ViaXvMCCommandBuffer *) buf;
+	    ViaXvMCCommandBuffer *vXvMCData = (ViaXvMCCommandBuffer *) buf;
 	    sAPriv=(ViaXvMCSAreaPriv*) DRIGetSAREAPrivate(pScrn->pScreen);
+	    
 	    switch(vXvMCData->command) {
 	    case VIA_XVMC_COMMAND_ATTRIBUTES:
-	        if ((vXvMCData->ctxNo | VIA_XVMC_VALID) != vx->ctxDisplaying) {
+		if ((vXvMCData->ctxNo | VIA_XVMC_VALID) != vx->ctxDisplaying)
 		    return 1;
-		} else {
-		    viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, data);
-		    return 0;
-		}
-		break;
+		viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, pPriv);
+		return 0;
 	    case VIA_XVMC_COMMAND_FDISPLAY:
 		if (sAPriv->XvMCDisplaying[vx->xvmc_port] != vXvMCData->srfNo) return 1;
-		viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, data);
+		viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, pPriv);
 		vx->ctxDisplaying = vXvMCData->ctxNo; 
 		break;
 	    case VIA_XVMC_COMMAND_DISPLAY:
 		if ((vXvMCData->ctxNo | VIA_XVMC_VALID) != vx->ctxDisplaying) {
-		    viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, data);
+		    viaXvMCDisplayAttributes( pScrn, &vXvMCData->attrib, pPriv);
 		}
 		if (sAPriv->XvMCDisplaying[vx->xvmc_port] != vXvMCData->srfNo) return 1;
 		vx->ctxDisplaying = vXvMCData->ctxNo;
@@ -953,32 +999,33 @@ int viaXvMCInterceptPutImage( ScrnInfoPtr pScrn,short src_x, short src_y,
 		DRM_CAS(&(sAPriv->XvMCDisplaying[vx->xvmc_port]), 
 			vXvMCData->srfNo, 0,__ret);
 		if (!__ret) 
-		    viaStopSWOVerlay(pScrn);
+		    ViaOverlayHide(pScrn);
 	    }
 	    return Success;
-	    break;
 	    default:
 		break;
 	    }		
 	} else {
 	    if ((VIA_XVMC_MAX_CONTEXTS | VIA_XVMC_VALID) != vx->ctxDisplaying) {
-		viaXvMCDisplayAttributes( pScrn, &vx->xvAttr, data);
+		viaXvMCDisplayAttributes( pScrn, &vx->xvAttr, pPriv);
 		vx->ctxDisplaying = VIA_XVMC_MAX_CONTEXTS | VIA_XVMC_VALID;
 	    } else if (vx->newAttribute) {
 		vx->newAttribute = 0;
-		viaXvMCDisplayAttributes( pScrn, &vx->xvAttr, data);
+		viaXvMCDisplayAttributes( pScrn, &vx->xvAttr, pPriv);
 	    }	    
 	    viaXvMCSetDisplayLock( pScrn, vx );
 	}
     }
-    return viaPutImageG( pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-			 drw_w, drw_h, id, buf, width, height, sync,
-			 clipBoxes, data);
+    return vx->PutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+			drw_w, drw_h, id, buf, width, height, sync,
+			clipBoxes, data);
 }
 		    			
 unsigned long viaXvMCPutImageSize(ScrnInfoPtr pScrn)
 {
-    return sizeof(ViaXvMCCommandBuffer);
+    if (VIAPTR(pScrn)->XvMCEnabled)
+	return sizeof(ViaXvMCCommandBuffer);
+    return 0;
 }
 
 #endif

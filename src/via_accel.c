@@ -16,9 +16,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -361,23 +361,16 @@ static void dispatchCBuffer(VIAPtr pVia, ViaCBuffer *buf)
 static void dispatchCBufferAGP(VIAPtr pVia, ViaCBuffer *buf) 
 {
 #ifdef XF86DRI
-    DRIInfoPtr pDRIInfo = pVia->pDRIInfo;
-    VIADRIPtr pVIADRI = pDRIInfo->devPrivate;
-    drmViaCmdBuffer b;
+    drm_via_cmdbuffer_t b;
     
     b.buf = (char *)(buf->buffer);
     b.size = buf->curPos*sizeof(CARD32);
 
-    if (pVia->agpEnable && pVia->dma2d) {    
-	if (pVia->directRenderingEnabled && pVIADRI->ringBufActive) {
-	    if (drmCommandWrite(pVia->drmFD,DRM_VIA_CMDBUFFER,&b,sizeof(b))) {
-	    
-		/*
-		 * No success using AGP. Try PCI instead.
-		 */
-	    
-		dispatchCBuffer(pVia,buf);
-	    }
+    if (pVia->directRenderingEnabled && pVia->agpEnable && pVia->dma2d) {    
+	VIADRIPtr pVIADRI =  pVia->pDRIInfo->devPrivate;
+	if (pVIADRI->ringBufActive) {
+	    if (drmCommandWrite(pVia->drmFD,DRM_VIA_CMDBUFFER,&b,sizeof(b)))
+		dispatchCBuffer(pVia,buf); /* No success using AGP. Try PCI instead. */
 	    return;
 	}
     }

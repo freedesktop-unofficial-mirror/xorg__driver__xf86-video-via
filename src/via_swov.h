@@ -1,4 +1,5 @@
 /*
+ * Copyright 2004-2005 The Unichrome Project  [unichrome.sf.net]
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
@@ -16,16 +17,16 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef _VIA_SWOV_H_
 #define _VIA_SWOV_H_ 1
 
-/*#define   XV_DEBUG      1*/     /* write log msg to /var/log/XFree86.0.log */
+/* #define XV_DEBUG 1 */     /* write log msg to /var/log/XFree86.0.log */
 
 #ifdef XV_DEBUG
 # define DBG_DD(x) (x)
@@ -38,6 +39,8 @@
 
 /* Definition for VideoStatus */
 #define VIDEO_NULL              0x00000000
+#define VIDEO_SWOV_SURFACE_CREATED  0x00000001
+#define VIDEO_SWOV_ON               0x00000002
 
 /*For Video HW Difference */
 #define VID_HWDIFF_TRUE           0x00000001
@@ -72,10 +75,9 @@ typedef struct __VIAHWDiff
 } VIAHWDiff;
 
 void VIAVidHWDiffInit(ScrnInfoPtr pScrn); 
-unsigned long VIAVidCreateSurface(ScrnInfoPtr pScrn, LPDDSURFACEDESC lpDDSurfaceDesc);
-unsigned long VIAVidLockSurface(ScrnInfoPtr pScrn, LPDDLOCK lpLock);
-unsigned long VIAVidDestroySurface(ScrnInfoPtr pScrn,  LPDDSURFACEDESC lpDDSurfaceDesc);
-unsigned long VIAVidUpdateOverlay(ScrnInfoPtr pScrn, LPDDUPDATEOVERLAY pUpdate);
-void VIAVidAdjustFrame(ScrnInfoPtr pScrn, int x, int y);
+int ViaSwovSurfaceCreate(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, CARD32 FourCC, CARD16 Width, CARD16 Height);
+void ViaSwovSurfaceDestroy(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv);
+Bool VIAVidUpdateOverlay(ScrnInfoPtr pScrn, LPDDUPDATEOVERLAY pUpdate);
+void ViaOverlayHide(ScrnInfoPtr pScrn);
 
 #endif /* _VIA_SWOV_H_ */

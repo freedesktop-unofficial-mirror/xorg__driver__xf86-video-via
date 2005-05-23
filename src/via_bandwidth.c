@@ -17,9 +17,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 #include "via_driver.h"
@@ -110,30 +110,6 @@ ViaSetPrimaryExpireNumber(ScrnInfoPtr pScrn, DisplayModePtr mode, ViaExpireNumbe
 }
 
 /*
- * original via comments:
- * Enable Refresh to avoid data lose when enter screen saver
- * Refresh disable & 128-bit alignment
- *
- */
-static void 
-ViaSetPrimaryFetchCount(ScrnInfoPtr pScrn, int width)
-{
-    vgaHWPtr hwp = VGAHWPTR(pScrn);
-    CARD16 Count = (width * (pScrn->bitsPerPixel >> 3)) >> 3;
-
-    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetPrimaryFetchCount\n"));
-
-    /* Make sure that this is 32byte aligned */
-    if (Count & 0x03) {
-	Count += 0x03;
-	Count &= ~0x03;
-    }
-
-    hwp->writeSeq(hwp, 0x1C, (Count >> 1) & 0xFF); /* +1 in original CLE266/KM400 code */
-    ViaSeqMask(hwp, 0x1D, Count >> 9, 0x03);
-}
-
-/*
  *
  */
 void 
@@ -188,8 +164,6 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	    /* originally when setting secondary */
 	    ViaSetPrimaryExpireNumber(pScrn, mode, CLE266AExpireNumber);
 	}
-
-	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
 	break;
     case VIA_KM400:
         if (pVia->HasSecondary) {  /* SAMM or DuoView case */
@@ -212,8 +186,6 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	}
 	hwp->writeSeq(hwp, 0x18, 0x57); /* 23 */
 
-	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
-	
 	/* originally when setting secondary */
 	ViaSetPrimaryExpireNumber(pScrn, mode, KM400ExpireNumber);
 	break;
@@ -222,8 +194,6 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	hwp->writeSeq(hwp, 0x17, 0xBF); /* 384/2 - 1 = 191 (orig via comment: 384/8) */
 	ViaSeqMask(hwp, 0x16, 0x92, 0xBF); /* 328/4 = 82 = 0x52*/
 	ViaSeqMask(hwp, 0x18, 0x8a, 0xBF); /* 74 */
-
-	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
 
 	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
 	    ViaSeqMask(hwp, 0x22, 0x10, 0x1F); /* 64/4 = 16 */
@@ -237,8 +207,6 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	ViaSeqMask(hwp, 0x16, 0x20, 0xBF); /* 32 */
 	ViaSeqMask(hwp, 0x18, 0x10, 0xBF); /* 16 */
 
-	ViaSetPrimaryFetchCount(pScrn, mode->CrtcHDisplay);
-
 	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
 	    ViaSeqMask(hwp, 0x22, 0x10, 0x1F); /* 64/4 = 16 */
 	else
@@ -251,27 +219,6 @@ ViaSetPrimaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	break;
 
     }
-}
-
-/*
- *
- */
-static void 
-ViaSetSecondaryFetchCount(ScrnInfoPtr pScrn, int width)
-{
-    vgaHWPtr hwp = VGAHWPTR(pScrn);
-    CARD16 Count = (width * (pScrn->bitsPerPixel >> 3)) >> 3;
-
-    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaSetSecondaryFetchCount\n"));
-
-    /* Make sure that this is 32byte aligned */
-    if (Count & 0x03) {
-	Count += 0x03;
-	Count &= ~0x03;
-    }
-
-    hwp->writeCrtc(hwp, 0x65, (Count >> 1) & 0xFF);
-    ViaCrtcMask(hwp, 0x67, Count >> 7, 0x0C);
 }
 
 /*
@@ -308,7 +255,6 @@ ViaSetSecondaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		hwp->writeCrtc(hwp, 0x68, 0x67); /* depth: 6, threshold: 7 */
 	    }
         }
-	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
 	break;
     case VIA_KM400:
 	if ((mode->HDisplay >= 1600) && (pVia->MemClk <= VIA_MEM_DDR200)) {
@@ -328,7 +274,6 @@ ViaSetSecondaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	   ViaCrtcMask(hwp, 0x6A, 0x00, 0x20);
 	   hwp->writeCrtc(hwp, 0x68, 0x67); /* depth: 6, threshold: 7 */
 	}
-	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
 	break;
 #ifdef HAVE_K8M800
     case VIA_K8M800:
@@ -344,8 +289,6 @@ ViaSetSecondaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	/* preq: 74 = 0x4A */
 	ViaCrtcMask(hwp, 0x92, 0x0A, 0x0F);
 	ViaCrtcMask(hwp, 0x95, 0x04, 0x07);
-
-	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
 
 	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
 	    ViaCrtcMask(hwp, 0x94, 0x10, 0x7F); /* 64/4 */
@@ -367,8 +310,6 @@ ViaSetSecondaryFIFO(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	/* preq: 8 = 0x08 */
 	ViaCrtcMask(hwp, 0x92, 0x08, 0x0F);
 	ViaCrtcMask(hwp, 0x95, 0x00, 0x07);
-
-	ViaSetSecondaryFetchCount(pScrn, mode->CrtcHDisplay);
 
 	if ((mode->HDisplay >= 1400) && (pScrn->bitsPerPixel == 32))
 	    ViaCrtcMask(hwp, 0x94, 0x10, 0x7F); /* 64/4 */

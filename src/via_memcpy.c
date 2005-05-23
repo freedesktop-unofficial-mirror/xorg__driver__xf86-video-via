@@ -15,9 +15,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE CODE SUPPLIER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -474,12 +474,12 @@ typedef struct {
     char *mName,**cpuFlag;
 } McFuncData;
 
-char *libc_cpuflags[] = {" ",0};
-char *kernel_cpuflags[] = {" ",0};
-char *sse_cpuflags[] = {" sse ",0};
-char *mmx_cpuflags[] = {" mmx ",0};
-char *now_cpuflags[] = {" 3dnow ",0};
-char *mmx2_cpuflags[] = {" mmxext ", " sse ",0};
+static char *libc_cpuflags[] = {" ",0};
+static char *kernel_cpuflags[] = {" ",0};
+static char *sse_cpuflags[] = {" sse ",0};
+static char *mmx_cpuflags[] = {" mmx ",0};
+static char *now_cpuflags[] = {" 3dnow ",0};
+static char *mmx2_cpuflags[] = {" mmxext ", " sse ",0};
 
 static McFuncData mcFunctions[totNum] = 
     {{libc_YUV42X,"libc",libc_cpuflags},

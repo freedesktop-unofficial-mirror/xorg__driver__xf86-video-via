@@ -16,9 +16,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -27,12 +27,16 @@
 
 #include "xf86xv.h"
 
-#define   XV_PORT_SWOV    0
-#define   XV_PORT_DUMMY   1
-#define   XV_PORT_NUM     2
+
+enum{ XV_ADAPT_SWOV=0, 
+      XV_ADAPT_NUM};
+
+#define VIA_MAX_XV_PORTS 1
 
 typedef struct {
+    unsigned char  xv_adaptor;
     unsigned char  xv_portnum;
+    int  adaptor;
     int  brightness;
     int  saturation;
     int  contrast;
@@ -41,9 +45,7 @@ typedef struct {
     CARD32    colorKey;
     Bool      autoPaint;
 
-    /* Surface structure */
-    DDSURFACEDESC SurfaceDesc;
-    DDLOCK ddLock;
+    CARD32 FourCC; /* from old SurfaceDesc -- passed down from viaPutImageG */
 
     /* store old video source & dst data */
     short old_src_x;
@@ -59,5 +61,9 @@ typedef struct {
     void *xvmc_priv;
 
 } viaPortPrivRec, *viaPortPrivPtr;
+
+extern viaPortPrivPtr viaPortPriv[];
+extern unsigned viaNumXvPorts;
+
 
 #endif /* _VIA_XVPRIV_H_ */

@@ -15,9 +15,9 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * VIA, S3 GRAPHICS, AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
@@ -31,13 +31,11 @@
 #include "xf86drm.h"
 #endif
 
-#include "via_overlay.h"
 #include "via_driver.h"
-#include "via_regrec.h"
 #include "via_priv.h"
 #include "via_swov.h"
 #ifdef XF86DRI
-#include "via_common.h"
+#include "via_drm.h"
 #endif
 
 /*
@@ -64,7 +62,7 @@ void VIAFreeLinear(VIAMemPtr mem)
 	case 2:
 #ifdef XF86DRI
 	    if(drmCommandWrite(mem->drm_fd, DRM_VIA_FREEMEM,
-			       &mem->drm, sizeof(drmViaMem)) < 0)
+			       &mem->drm, sizeof(drm_via_mem_t)) < 0)
 		ErrorF("DRM module failed free.\n");
 #endif
 	    mem->pool = 0;
@@ -110,7 +108,7 @@ unsigned long VIAAllocLinear(VIAMemPtr mem, ScrnInfoPtr pScrn, unsigned long siz
 	    mem->drm.size = size;
 	    mem->drm.type = VIDEO;
 	    ret = drmCommandWrite(mem->drm_fd, DRM_VIA_ALLOCMEM, &mem->drm, 
-				  sizeof(drmViaMem));
+				  sizeof(drm_via_mem_t));
 	    if (ret || (size != mem->drm.size)) {
 		/*
 		 * Try XY Fallback before failing.

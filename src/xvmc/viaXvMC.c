@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VIA Unichrome XvMC extension client lib.
  *
- * Copyright (c) 2004 The Unichrome Project. All rights reserved.
+ * Copyright (c) 2004 Thomas Hellström. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,18 @@
 
 
 /*
- *Author: Thomas HellstrÃ¶m, 2004.
+ *Author: Thomas Hellstrom, 2004 - 2005.
  *Change: 0.9.3, Bugfix by Pascal Brisset.
  *Change: 0.10.1, Support for interlaced streams Thanks to Pascal Brisset.
  */
 
-#undef WAITPAUSE
+/*
+ * For correct size of atom.
+ */
+
+#ifdef __amd64__
+#define _XSERVER64
+#endif
 
 #include "viaXvMCPriv.h"
 #include "viaLowLevel.h"
@@ -53,7 +59,9 @@ static int error_base;
 static int event_base;
 
 
-#define FOURCC_VIA 0x4E4B4C57
+#define FOURCC_XVMC (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
+#define XVMC_DECODER_FUTEX(sAPriv) \
+  XVMCLOCKPTR(sAPriv, UNICHROME_LOCK_DECODER1)
 
 static unsigned yOffs (ViaXvMCSurface *srf) 
 {
@@ -91,38 +99,19 @@ static void defaultQMatrices(ViaXvMCContext *ctx)
     ctx->nonIntraLoaded = 0;
 }
 
-
 static void releaseDecoder(ViaXvMCContext *ctx,int clearCtx) 
 {
     volatile ViaXvMCSAreaPriv *sAPriv;
 
     sAPriv = SAREAPTR(ctx);
-
-    if ((XVMC_DECODER_FUTEX(sAPriv)->lock & ~DRM_LOCK_CONT) == 
-	(ctx->drmcontext | DRM_LOCK_HELD)) {
-	DRM_CAS_RESULT(__ret);
-
-	if (clearCtx)
-	    sAPriv->XvMCCtxNoGrabbed = ~0;
-	
-	DRM_CAS( XVMC_DECODER_FUTEX(sAPriv), ctx->drmcontext | DRM_LOCK_HELD,
-		 0, __ret);
-	if (__ret) {
-	    drm_via_futex_t fx;
-	    fx.func = VIA_FUTEX_WAKE;
-	    fx.lock = 0;
-	    XVMC_DECODER_FUTEX(sAPriv)->lock = 0;
-	    drmCommandWrite(ctx->fd, DRM_VIA_DEC_FUTEX, &fx, sizeof(fx));
-	}
-    }
-
+    UNICHROME_UNLOCK(ctx->fd, UNICHROME_LOCK_DECODER1, sAPriv, ctx->drmcontext);
 }
 
 
 static int grabDecoder(	ViaXvMCContext *ctx, int *hadLastLock) 
 {
     volatile ViaXvMCSAreaPriv *sAPriv =  SAREAPTR(ctx);
-    int retFtx;
+    int retFtx, lc;
 
     /*
      * Try to grab the decoder. If it is not available we will sleep until
@@ -131,87 +120,19 @@ static int grabDecoder(	ViaXvMCContext *ctx, int *hadLastLock)
      * available, the lock should be reasonably fast.
      */
 
-
-    if (ctx->haveDecoder) return 0;
-
-    while(1) {
-	DRM_CAS_RESULT(__ret);
-	DRM_CAS( XVMC_DECODER_FUTEX(sAPriv), 0, 
-		 ctx->drmcontext | DRM_LOCK_HELD,__ret);
-
-	if (__ret) {
-
-	    drm_via_futex_t fx;
-	    int lockVal;
-
-	    /*
-	     * The decoder is locked. Try to 
-	     * mark the lock as contended and go to 
-	     * sleep.
-	     */
-
-	    lockVal =  XVMC_DECODER_FUTEX(sAPriv)->lock;
-
-	    if (!(lockVal & DRM_LOCK_HELD)) continue;
-	    if ((lockVal & ~(DRM_LOCK_HELD | DRM_LOCK_CONT)) == 
-		ctx->drmcontext) {
-		*hadLastLock = 1;
-		return 0;
-	    }
-	    fx.val = lockVal | DRM_LOCK_CONT;
-	    DRM_CAS( XVMC_DECODER_FUTEX(sAPriv), lockVal, fx.val , __ret); 
-	    lockVal =  XVMC_DECODER_FUTEX(sAPriv)->lock;
-
-	    if (__ret) continue;
-
-	    fx.func = VIA_FUTEX_WAIT;
-	    fx.lock = 0;
-	    fx.ms = 10;
-	    pthread_mutex_unlock( &ctx->ctxMutex );
-	    if (0 != (retFtx = 
-		      drmCommandWrite(ctx->fd,DRM_VIA_DEC_FUTEX, &fx, 
-				      sizeof(fx)))) {
-		switch(retFtx) {
-		case -EBUSY:
-		    return 1;
-		case -EINVAL:
-		{
-		    /*
-		     * DRM does not support the futex IOCTL. Sleep.
-		     */
-
-		    struct timespec
-			sleep,rem;
-
-		    sleep.tv_nsec = 1;
-		    sleep.tv_sec = 0;
-		    nanosleep(&sleep,&rem);
-		    break;
-		}
-		default:
-		    break;
-		}
-	    } 
-	    pthread_mutex_lock( &ctx->ctxMutex );
-	} else {
-
-	    /*
-	     * The decoder is available. Mark it as used, check if we were
-	     * the one who had it locked last time and return. 
-	     */
-
-	    *hadLastLock = (sAPriv->XvMCCtxNoGrabbed == ctx->drmcontext);
-	    sAPriv->XvMCCtxNoGrabbed = ctx->drmcontext;
-	    return 0;
-	}
+    if (ctx->haveDecoder) {
+        flushXvMCLowLevel(&ctx->xl);  /* Ignore errors here. */
+	fprintf(stderr,"libviaXvMC: ERROR: Player forgot to call XvMCFlushSurface()\n"); 
+	*hadLastLock = 1;
+        return 0;
     }
+    UNICHROME_LOCK(ctx->fd, UNICHROME_LOCK_DECODER1, sAPriv, ctx->drmcontext, lc,
+		   retFtx);
+    *hadLastLock = (ctx->drmcontext == lc);
 
-    /*
-     * We should never get here.
-     */
-
-    return 0;
+    return retFtx;
 }
+
 	    
 static void setupAttribDesc(Display *display, XvPortID port,
 			    const ViaXvMCAttrHolder *attrib,
@@ -253,7 +174,37 @@ static void releaseAttribDesc(int numAttr, XvAttribute attribDesc[])
     }
 }
     
-	    
+static Status releaseContextResources(Display *display, XvMCContext *context,
+				      int freePrivate, Status errType)
+{
+    ViaXvMCContext *pViaXvMC = (ViaXvMCContext *) context->privData;
+
+    switch(pViaXvMC->resources) {
+    case context_lowLevel:
+	closeXvMCLowLevel(&pViaXvMC->xl);
+    case context_mutex:
+	pthread_mutex_destroy(&pViaXvMC->ctxMutex);
+    case context_sAreaMap:
+	drmUnmap(pViaXvMC->sAreaAddress,pViaXvMC->sAreaSize);
+    case context_fbMap:
+	drmUnmap(pViaXvMC->fbAddress,pViaXvMC->fbSize);
+    case context_mmioMap:
+	drmUnmap(pViaXvMC->mmioAddress,pViaXvMC->mmioSize);
+    case context_context:
+	XLockDisplay(display);
+	_xvmc_destroy_context(display, context);
+	XUnlockDisplay(display);
+    case context_fd:
+	if (pViaXvMC->fd >= 0)
+	    drmClose(pViaXvMC->fd);
+	pViaXvMC->fd = -1;
+	if (!freePrivate) break;
+    default:
+	free(pViaXvMC);
+    }
+    return errType;
+}
+
 
 Status XvMCCreateContext(Display *display, XvPortID port,
 			 int surface_type_id, int width, int height, int flags,
@@ -306,6 +257,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     }
   
     pViaXvMC = (ViaXvMCContext *)context->privData;
+    pViaXvMC->resources = context_none;
 
     /* Verify the XvMC extension exists */
 
@@ -332,8 +284,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     if(! drmAvailable()) {
 	fprintf(stderr,"Direct Rendering is not avilable on this system!\n");
-	free(pViaXvMC);
-	return BadAlloc;
+	return releaseContextResources(display, context, 1, BadAlloc);
     }
 
     /*
@@ -348,13 +299,14 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	if (strcmp(curBusID,"NOBUSID")) {
 	    if((pViaXvMC->fd = drmOpen("via",curBusID)) < 0) {
 		fprintf(stderr,"DRM Device for via could not be opened.\n");
-		goto err2;
+		return releaseContextResources(display, context, 1, BadAlloc);
 	    }
+	    pViaXvMC->resources = context_fd;
 
 	    if (NULL == (drmVer = drmGetVersion(pViaXvMC->fd))) {
 		fprintf(stderr, 
 			"viaXvMC: Could not get drm version.");
-		goto err2;
+		return releaseContextResources(display, context, 1, BadAlloc);
 	    }
 	    if (((drmVer->version_major != 2 ) || (drmVer->version_minor < 0))) {
 		fprintf(stderr, 
@@ -366,8 +318,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 			drmVer->version_major,drmVer->version_minor,
 			drmVer->version_patchlevel); 
 		drmFreeVersion(drmVer);
-		goto err2;
+		return releaseContextResources(display, context, 1, BadAlloc);
 	    } 
+	    drmFreeVersion(drmVer);
 	    drmGetMagic(pViaXvMC->fd,&magic);
 	} else {
 	    magic = 0;
@@ -384,7 +337,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 				       &priv_data))) {
 	    XUnlockDisplay(display);
 	    fprintf(stderr,"Unable to create XvMC Context.\n");
-	    goto err2;
+	    return releaseContextResources(display, context, 1, BadAlloc);
 	}
 	XUnlockDisplay(display);
 
@@ -394,8 +347,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	    fprintf(stderr,"\tExpected %d, got %d\n",
 		    (sizeof(ViaXvMCCreateContextRec) >> 2),
 		    priv_count);
-	    goto err1;
+	    return releaseContextResources(display, context, 1, BadAlloc);
 	}
+	pViaXvMC->resources = context_context;
 
 	tmpComm = (  ViaXvMCCreateContextRec *) priv_data;
 
@@ -403,39 +357,26 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	    (tmpComm->minor != VIAXVMC_MINOR)) {
 	    fprintf(stderr,"Version mismatch between the XFree86 via driver\n"
 		    "and the XvMC library. Cannot continue!\n");
-	    goto err1;
+	    return releaseContextResources(display, context, 1, BadAlloc);
 	}
       
 	if (strncmp(curBusID, tmpComm->busIdString, 20)) {
-	    XLockDisplay(display);
-	    _xvmc_destroy_context(display, context);
-	    XUnlockDisplay(display);
-	    if (pViaXvMC->fd >= 0) 
-		drmClose(pViaXvMC->fd);
-	    pViaXvMC->fd = -1;
+	    releaseContextResources(display, context, 0, Success);
+	    pViaXvMC->resources = context_none;
 	    strncpy(curBusID, tmpComm->busIdString, 20);
+	    XFree(priv_data);
 	    continue;
 	}
       
-	if (!tmpComm->authenticated) goto err1;
-
-	continue;
-
-      err1:
-	XLockDisplay(display);
-	_xvmc_destroy_context(display, context);
-	XUnlockDisplay(display);
-      err2:
-	if (pViaXvMC->fd >= 0) 
-	  drmClose(pViaXvMC->fd);
-	free(pViaXvMC);
-	return BadAlloc;
-      
+	if (!tmpComm->authenticated) {
+	    XFree(priv_data);
+	    return releaseContextResources(display, context, 1, BadAlloc);
+	}
+	    
     } while (pViaXvMC->fd < 0);
 
     pViaXvMC->ctxNo = tmpComm->ctxNo;
     pViaXvMC->drmcontext = tmpComm->drmcontext;
-    pViaXvMC->fb_base = tmpComm->fbBase;
     pViaXvMC->fbOffset = tmpComm->fbOffset;
     pViaXvMC->fbSize = tmpComm->fbSize;
     pViaXvMC->mmioOffset = tmpComm->mmioOffset;
@@ -449,8 +390,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     for (i=0; i<VIA_MAX_RENDSURF; ++i) {
 	pViaXvMC->rendSurf[i] = 0;
     }
-    strncpy(pViaXvMC->busIdString,tmpComm->busIdString,9);
-    pViaXvMC->busIdString[9] = '\0';    
+    strncpy(pViaXvMC->busIdString,tmpComm->busIdString,20);
+    pViaXvMC->busIdString[20] = '\0';    
     pViaXvMC->attrib = tmpComm->initAttrs;
     pViaXvMC->lastSrfDisplaying = ~0;
     setupAttribDesc(display, port, &pViaXvMC->attrib, pViaXvMC->attribDesc);
@@ -468,12 +409,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if(drmMap(pViaXvMC->fd,pViaXvMC->mmioOffset,
 	      pViaXvMC->mmioSize,&(pViaXvMC->mmioAddress)) < 0) {
 	fprintf(stderr,"Unable to map the display chip mmio registers.\n");
-	XLockDisplay(display);
-	_xvmc_destroy_context(display, context);
-	XUnlockDisplay(display);
-	free(pViaXvMC);
-	return BadAlloc;
+	return releaseContextResources(display, context, 1, BadAlloc);
     }   
+    pViaXvMC->resources = context_mmioMap;
 
     /* 
      * Map Framebuffer memory 
@@ -482,12 +420,10 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if(drmMap(pViaXvMC->fd,pViaXvMC->fbOffset,
 	      pViaXvMC->fbSize,&(pViaXvMC->fbAddress)) < 0) {
 	fprintf(stderr,"Unable to map XvMC Framebuffer.\n");
-	XLockDisplay(display);
-	_xvmc_destroy_context(display, context);
-	XUnlockDisplay(display);
-	free(pViaXvMC);
-	return BadAlloc;
+	return releaseContextResources(display, context, 1, BadAlloc);
     } 
+    pViaXvMC->resources = context_fbMap;
+
 
     /*
      * Map XvMC Sarea and get the address of the HW lock.
@@ -496,33 +432,38 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if(drmMap(pViaXvMC->fd,pViaXvMC->sAreaOffset,
 	      pViaXvMC->sAreaSize,&(pViaXvMC->sAreaAddress)) < 0) {
 	fprintf(stderr,"Unable to map DRI SAREA.\n");
-	XLockDisplay(display);
-	_xvmc_destroy_context(display, context);
-	XUnlockDisplay(display);
-	free(pViaXvMC);
-	return BadAlloc;
+	return releaseContextResources(display, context, 1, BadAlloc);
     } 
-    pViaXvMC->hwLock = (drmLockPtr) pViaXvMC->sAreaAddress;
+    pViaXvMC->resources = context_sAreaMap;
 
+
+    pViaXvMC->hwLock = (drmLockPtr) pViaXvMC->sAreaAddress;
     defaultQMatrices(pViaXvMC);
     pViaXvMC->chromaIntraLoaded = 1;
     pViaXvMC->chromaNonIntraLoaded = 1;
     pViaXvMC->yStride = (width + 31) & ~31;
     pViaXvMC->haveDecoder = 0;
-    pViaXvMC->decTimeOut = 0;
     pViaXvMC->attribChanged = 1;
     pViaXvMC->haveXv = 0;
     pViaXvMC->port = context->port;
-    initXvMCLowLevel(&pViaXvMC->xl, pViaXvMC->fd, &pViaXvMC->drmcontext,
-		     pViaXvMC->hwLock, pViaXvMC->mmioAddress, pViaXvMC->useAGP);
+    pthread_mutex_init(&pViaXvMC->ctxMutex,NULL);
+    pViaXvMC->resources = context_mutex;
+    pViaXvMC->timeStamp = 0;
 
+    if (initXvMCLowLevel(&pViaXvMC->xl, pViaXvMC->fd, &pViaXvMC->drmcontext,
+			 pViaXvMC->hwLock, pViaXvMC->mmioAddress, 
+			 pViaXvMC->fbAddress, pViaXvMC->useAGP)) {
+	fprintf(stderr,"ViaXvMC: Could not allocate timestamp blit area\n");
+	return releaseContextResources(display, context, 1, BadAlloc);
+    }       
+    pViaXvMC->resources = context_lowLevel;
+    setAGPSyncLowLevel(&pViaXvMC->xl, 1, 0);
     hwlLock(&pViaXvMC->xl,1); 
     setLowLevelLocking(&pViaXvMC->xl,0);
     viaVideoSubPictureOffLocked(&pViaXvMC->xl); 
     flushXvMCLowLevel(&pViaXvMC->xl);  /* Ignore errors here. */
     setLowLevelLocking(&pViaXvMC->xl,1);
     hwlUnlock(&pViaXvMC->xl,1); 
-    pthread_mutex_init(&pViaXvMC->ctxMutex,NULL);
     return Success;
 }
 
@@ -545,28 +486,9 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
      * before XvMCDestroyContext, the X server will take care of this.
      */
 
-    pthread_mutex_lock(&pViaXvMC->ctxMutex);
-    closeXvMCLowLevel(&pViaXvMC->xl);
     releaseAttribDesc(pViaXvMC->attrib.numAttr,pViaXvMC->attribDesc);
     releaseDecoder(pViaXvMC,1);
-
-    drmUnmap(pViaXvMC->sAreaAddress,pViaXvMC->sAreaSize);
-    drmUnmap(pViaXvMC->fbAddress,pViaXvMC->fbSize);
-    drmUnmap(pViaXvMC->mmioAddress,pViaXvMC->mmioSize);
-
-    XLockDisplay(display);
-    _xvmc_destroy_context(display, context);
-    XUnlockDisplay(display);
-
-
-    if (pViaXvMC->haveXv) {
-	XFree(pViaXvMC->xvImage);
-    }      
-    pthread_mutex_destroy(&pViaXvMC->ctxMutex);
-    drmClose(pViaXvMC->fd);
-    free(pViaXvMC);
-    context->privData = NULL;
-    return Success;
+    return releaseContextResources(display, context, 1, Success);
 }
 
 Status XvMCCreateSurface( Display *display, XvMCContext *context,
@@ -630,6 +552,7 @@ Status XvMCCreateSurface( Display *display, XvMCContext *context,
     pViaSurface->yStride = pViaXvMC->yStride;
     pViaSurface->privContext = pViaXvMC;
     pViaSurface->privSubPic = NULL;
+    pViaSurface->needsSync = 0;
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
     return Success;
 }
@@ -675,16 +598,8 @@ Status XvMCPutSlice2(Display *display,XvMCContext *context, char *slice,
 	return BadAlloc;
     }
 
-    if (pViaXvMC->decTimeOut) {
-        pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue;
-    }
-
     viaMpegWriteSlice(&pViaXvMC->xl, (CARD8 *)slice, nBytes, sCode);
-    if (flushXvMCLowLevel(&pViaXvMC->xl)) {
-        pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue; 
-    }
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
     return Success;
 }
@@ -708,16 +623,8 @@ Status XvMCPutSlice(Display *display,XvMCContext *context, char *slice,
 	return BadAlloc;
     }
 
-    if (pViaXvMC->decTimeOut) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue;
-    }
-
     viaMpegWriteSlice(&pViaXvMC->xl, (CARD8 *)slice, nBytes, 0);
-    if (flushXvMCLowLevel(&pViaXvMC->xl)) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue; 
-    }
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
     return Success;
 }
@@ -735,7 +642,7 @@ static Status updateXVOverlay(Display *display,ViaXvMCContext *pViaXvMC,
 
     if (!pViaXvMC->haveXv) {
 	pViaXvMC->xvImage = 
-	    XvCreateImage(display,pViaXvMC->port,FOURCC_VIA,
+	    XvCreateImage(display,pViaXvMC->port,FOURCC_XVMC,
 			  (char *)&buf,pViaSurface->width,
 			  pViaSurface->height);
 	pViaXvMC->gc = XCreateGC(display,draw,0,0);
@@ -818,6 +725,9 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,Drawable draw,
 	pViaXvMC->lastSrfDisplaying = pViaSurface->srfNo | VIA_XVMC_VALID;
     overlayUpdated = 0;
 
+    viaVideoSetSWFLipLocked(&pViaXvMC->xl, yOffs(pViaSurface), uOffs(pViaSurface), 
+			    vOffs(pViaSurface));
+
     if (lastSurface != dispSurface) {
 	hwlUnlock(&pViaXvMC->xl,1);
 
@@ -825,6 +735,7 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,Drawable draw,
 	 * We weren't the last to display. Update the overlay before flipping.
 	 */
 
+	flushPCIXvMCLowLevel(&pViaXvMC->xl);
 	ret = updateXVOverlay(display,pViaXvMC,pViaSurface,draw,srcx,srcy,srcw, 
 			      srch,destx,desty,destw,desth);
 	if (ret) {
@@ -869,10 +780,8 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,Drawable draw,
      * Flip
      */
 
-    viaVideoSWFlipLocked(&pViaXvMC->xl, flags, pViaSurface->progressiveSequence,
-			 yOffs(pViaSurface), uOffs(pViaSurface), 
-			 vOffs(pViaSurface));
-    ret = flushXvMCLowLevel(&pViaXvMC->xl);
+    viaVideoSWFlipLocked(&pViaXvMC->xl, flags, pViaSurface->progressiveSequence);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     setLowLevelLocking(&pViaXvMC->xl,1);
     hwlUnlock(&pViaXvMC->xl,1);
 
@@ -902,7 +811,7 @@ Status XvMCBeginSurface(Display *display,
     ViaXvMCSurface *targS,*futS,*pastS;
     ViaXvMCContext *pViaXvMC;
     int hadDecoderLast;
-
+    CARD32 timeStamp;
 
     if((display == NULL) || (context == NULL) || (target_surface == NULL)) {
 	return BadValue;
@@ -912,34 +821,58 @@ Status XvMCBeginSurface(Display *display,
 
     pthread_mutex_lock( &pViaXvMC->ctxMutex );
     if (grabDecoder(pViaXvMC, &hadDecoderLast)) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadAlloc;
+      pthread_mutex_unlock( &pViaXvMC->ctxMutex );
+      return BadAlloc;
     }
+    pViaXvMC->haveDecoder = 1;
  
-    if (!hadDecoderLast) {
+    /*
+     * We need to wait for decoder idle at next flush, since hardware doesn't queue 
+     * beginsurface requests until the decoder is idle. This is  
+     * done by waiting on the last previous timestamp, or if there was another context
+     * having the decoder before us, by emitting a new one.
+     */
+
+    if (pViaXvMC->useAGP) {
+        if (!hadDecoderLast || pViaXvMC->timeStamp == 0) {
+	    timeStamp = viaDMATimeStampLowLevel(&pViaXvMC->xl);
+	    if (flushXvMCLowLevel(&pViaXvMC->xl)) {
+	        releaseDecoder(pViaXvMC, 0);
+		return BadAlloc;
+	    }	      
+	    pViaXvMC->timeStamp = timeStamp;
+	} else {
+	    timeStamp = pViaXvMC->timeStamp;
+        }
+	setAGPSyncLowLevel(&pViaXvMC->xl, 1, timeStamp);
+    }
+
+    if (!hadDecoderLast || !pViaXvMC->decoderOn) {
 	pViaXvMC->intraLoaded = 0;
 	pViaXvMC->nonIntraLoaded = 0;
     }
 
-    pViaXvMC->haveDecoder = 1;
+    viaMpegReset(&pViaXvMC->xl);
 
     targS = (ViaXvMCSurface *)target_surface->privData;
     futS = NULL;
     pastS = NULL;
+
+ 
     pViaXvMC->rendSurf[0] = targS->srfNo | VIA_XVMC_VALID;
     if (future_surface) {
 	futS = (ViaXvMCSurface *)future_surface->privData;
+	futS->needsSync = 0;
     }
     if (past_surface) {	
 	pastS = (ViaXvMCSurface *)past_surface->privData;
+	pastS->needsSync = 0;
     }
+
 
     targS->progressiveSequence = (control->flags & XVMC_PROGRESSIVE_SEQUENCE); 
     targS->privSubPic = NULL;
     
-    syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_DECODER_IDLE, 0);
- 
-    viaMpegReset(&pViaXvMC->xl);
     viaMpegSetFB(&pViaXvMC->xl,0,yOffs(targS),uOffs(targS),vOffs(targS));
     viaMpegSetSurfaceStride(&pViaXvMC->xl,pViaXvMC);
     if (past_surface) {
@@ -954,11 +887,9 @@ Status XvMCBeginSurface(Display *display,
 	viaMpegSetFB(&pViaXvMC->xl,2,0xffffffff,0xffffffff,0xffffffff);
     }
     viaMpegBeginPicture(&pViaXvMC->xl,pViaXvMC,context->width,context->height,control);
-    if (flushXvMCLowLevel(&pViaXvMC->xl)) {
-        pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue;
-    }
-    pViaXvMC->decTimeOut = 0;
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
+    targS->needsSync = 1;
+    targS->syncMode = LL_MODE_DECODER_IDLE;
     pViaXvMC->decoderOn = 1;
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
     return Success;
@@ -969,9 +900,7 @@ Status XvMCSyncSurface(Display *display,XvMCSurface *surface)
 {
     ViaXvMCSurface *pViaSurface;
     ViaXvMCContext *pViaXvMC;
-    volatile ViaXvMCSAreaPriv *sPriv;
     unsigned i;
-    int retVal;
 
     if((display == NULL) || (surface == NULL)) {
 	return BadValue;
@@ -988,38 +917,44 @@ Status XvMCSyncSurface(Display *display,XvMCSurface *surface)
     }
 
     pthread_mutex_lock( &pViaXvMC->ctxMutex );
-    if (!pViaXvMC->haveDecoder) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return Success;
+
+    if (pViaSurface->needsSync) {
+        CARD32 timeStamp = pViaSurface->timeStamp;
+	int syncMode = pViaSurface->syncMode;
+
+	if (pViaXvMC->useAGP) {
+
+	    syncMode = (pViaSurface->syncMode == LL_MODE_2D || 
+			pViaSurface->timeStamp < pViaXvMC->timeStamp) ? 
+		LL_MODE_2D : LL_MODE_DECODER_IDLE;
+	    if (pViaSurface->syncMode != LL_MODE_2D) 
+	        timeStamp = pViaXvMC->timeStamp;
+
+	} else if (syncMode != LL_MODE_2D && 
+		   pViaXvMC->rendSurf[0] != (pViaSurface->srfNo | VIA_XVMC_VALID)) {
+
+	  pViaSurface->needsSync = 0;
+	  pthread_mutex_unlock( &pViaXvMC->ctxMutex );
+	  return Success;
+	}
+
+	if (syncXvMCLowLevel(&pViaXvMC->xl, syncMode, 1, 
+			     pViaSurface->timeStamp)) {
+	    pthread_mutex_unlock( &pViaXvMC->ctxMutex );
+	    return BadValue;
+	}
+	pViaSurface->needsSync = 0;
     }
 
-
-    retVal = Success;
     if (pViaXvMC->rendSurf[0] == (pViaSurface->srfNo | VIA_XVMC_VALID)) {
-
-	sPriv = SAREAPTR(pViaXvMC);
-	if (!pViaXvMC->decTimeOut) {
-	    if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_DECODER_IDLE, 
-				 1)) {
-		retVal = BadValue;
-	    }
-	} else {
-	    viaMpegReset(&pViaXvMC->xl);
-	    if (!flushXvMCLowLevel(&pViaXvMC->xl))
-		pViaXvMC->decTimeOut = 0;
-	    retVal = BadValue;
-	}
-	hwlLock(&pViaXvMC->xl,0);
-	pViaXvMC->haveDecoder = 0;
-	releaseDecoder(pViaXvMC, 0);
-	hwlUnlock(&pViaXvMC->xl,0);
+	pViaSurface->needsSync = 0;
 	for (i=0; i<VIA_MAX_RENDSURF; ++i) {
 	    pViaXvMC->rendSurf[i] = 0;
 	}
-    
     }
+
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-    return retVal;
+    return Success;
 }
 
 Status XvMCLoadQMatrix(Display *display, XvMCContext *context,
@@ -1178,6 +1113,7 @@ Status XvMCCreateSubpicture( Display *display,
     pViaSubPic->stride = (subpicture->width + 31) & ~31;
     pViaSubPic->privContext = pViaXvMC;
     pViaSubPic->ia44 = (xvimage_id == FOURCC_IA44);
+    pViaSubPic->needsSync = 0;
 
     /* Free data returned from _xvmc_create_subpicture */
 
@@ -1193,7 +1129,6 @@ XvMCSetSubpicturePalette (Display *display, XvMCSubpicture *subpicture,
     ViaXvMCSubPicture *pViaSubPic;
     ViaXvMCContext *pViaXvMC;
     volatile ViaXvMCSAreaPriv *sAPriv;
-    unsigned ret;
     unsigned i;
     CARD32 tmp;
 
@@ -1227,11 +1162,10 @@ XvMCSetSubpicturePalette (Display *display, XvMCSubpicture *subpicture,
 	(pViaSubPic->srfNo | VIA_XVMC_VALID)) {
         viaVideoSubPictureLocked(&pViaXvMC->xl,pViaSubPic);
     }
-    ret = flushXvMCLowLevel(&pViaXvMC->xl);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     setLowLevelLocking(&pViaXvMC->xl,1);
     hwlUnlock(&pViaXvMC->xl,1);
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-    if (ret) return BadValue;
     return Success;
 }
 
@@ -1309,11 +1243,9 @@ Status XvMCClearSubpicture (
     bOffs = pViaSubPic->offset + y*pViaSubPic->stride + x;
     viaBlit(&pViaXvMC->xl, 8, 0, pViaSubPic->stride, bOffs, pViaSubPic->stride,
 	    width, height, 1, 1, VIABLIT_FILL, color);
+    pViaSubPic->needsSync = 1;
+    pViaSubPic->timeStamp = viaDMATimeStampLowLevel(&pViaXvMC->xl);
     if (flushXvMCLowLevel(&pViaXvMC->xl)) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue;
-    }
-    if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_2D, 0)) {
 	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
 	return BadValue;
     }
@@ -1369,6 +1301,14 @@ XvMCCompositeSubpicture (
 		    &srcx, &srcy, &dstx, &dsty, &width, &height)) {
 	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
 	return Success;
+    }
+
+    if (pViaSubPic->needsSync) {
+	if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_2D, 0, pViaSubPic->timeStamp)) {
+	    pthread_mutex_unlock( &pViaXvMC->ctxMutex );
+	    return BadValue;
+	}
+	pViaSubPic->needsSync = 0;
     }
 
     for(i=0; i<height; ++i) {
@@ -1477,25 +1417,30 @@ XvMCBlendSubpicture2 (
     if (width != pViaSurface->width || height != pViaSSurface->height) {
 	return BadMatch;
     }
+
+    if (XvMCSyncSurface(display,source_surface)) {
+        return BadValue;
+    }
+
     pthread_mutex_lock( &pViaXvMC->ctxMutex );
     viaBlit(&pViaXvMC->xl, 8, yOffs(pViaSSurface), pViaSSurface->yStride,
 	    yOffs(pViaSurface), pViaSurface->yStride,
 	    width, height, 1, 1, VIABLIT_COPY, 0);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     viaBlit(&pViaXvMC->xl, 8, uOffs(pViaSSurface), pViaSSurface->yStride >> 1,
 	    uOffs(pViaSurface), pViaSurface->yStride >> 1,
 	    width >> 1, height >> 1, 1, 1, VIABLIT_COPY, 0);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     viaBlit(&pViaXvMC->xl, 8, vOffs(pViaSSurface), pViaSSurface->yStride >> 1,
 	    vOffs(pViaSurface), pViaSurface->yStride >> 1,
 	    width >> 1, height >> 1, 1, 1, VIABLIT_COPY, 0);
+    pViaSurface->needsSync = 1;
+    pViaSurface->syncMode = LL_MODE_2D;
+    pViaSurface->timeStamp = viaDMATimeStampLowLevel(&pViaXvMC->xl);
     if (flushXvMCLowLevel(&pViaXvMC->xl)) {
 	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
 	return BadValue;
     }
-    if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_2D, 0)) {
-	pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-	return BadValue;
-    }
-
     if (subpicture) {
 
 	if(NULL == (pViaSubPic = subpicture->privData)) {
@@ -1516,6 +1461,8 @@ Status
 XvMCSyncSubpicture (Display *display, XvMCSubpicture *subpicture) 
 {
     ViaXvMCSubPicture *pViaSubPic;
+    ViaXvMCContext *pViaXvMC;
+    Status retVal=0;
 
     if((display == NULL) || subpicture == NULL){
 	return BadValue;
@@ -1524,7 +1471,17 @@ XvMCSyncSubpicture (Display *display, XvMCSubpicture *subpicture)
 	return (error_base + XvMCBadSubpicture);
     }
 
-    return Success;
+    pViaXvMC = pViaSubPic->privContext;
+    pthread_mutex_lock( &pViaXvMC->ctxMutex );
+    if (pViaSubPic->needsSync) {
+	if (syncXvMCLowLevel(&pViaXvMC->xl, LL_MODE_2D, 
+			     0, pViaSubPic->timeStamp)) {
+	    retVal = BadValue;
+	}
+	pViaSubPic->needsSync = 0;
+    }
+    pthread_mutex_unlock( &pViaXvMC->ctxMutex );
+    return retVal;
 }
 
 Status
@@ -1567,7 +1524,7 @@ XvMCDestroySubpicture (Display *display, XvMCSubpicture *subpicture)
         viaVideoSubPictureOffLocked(&pViaXvMC->xl);
 	sAPriv->XvMCSubPicOn[pViaXvMC->xvMCPort] = 0;
     }
-    flushXvMCLowLevel(&pViaXvMC->xl);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     setLowLevelLocking(&pViaXvMC->xl,1);
     hwlUnlock(&pViaXvMC->xl,1);
 
@@ -1623,10 +1580,17 @@ XvMCFlushSurface (Display *display, XvMCSurface *surface)
 
     pViaXvMC = pViaSurface->privContext;
     pthread_mutex_lock( &pViaXvMC->ctxMutex );
-
-    ret = (flushXvMCLowLevel(&pViaXvMC->xl)) ? BadValue : Success; 
+    if (pViaSurface->needsSync) 
+	pViaSurface->timeStamp = pViaXvMC->timeStamp = 
+	  viaDMATimeStampLowLevel(&pViaXvMC->xl);
+    ret = (flushXvMCLowLevel(&pViaXvMC->xl)) ? BadValue : Success;
+    if (pViaXvMC->rendSurf[0] == (pViaSurface->srfNo | VIA_XVMC_VALID)) {
+	hwlLock(&pViaXvMC->xl,0);
+	pViaXvMC->haveDecoder = 0;
+	releaseDecoder(pViaXvMC, 0);
+	hwlUnlock(&pViaXvMC->xl,0);
+    }
     pthread_mutex_unlock( &pViaXvMC->ctxMutex );
-
     return ret;
 }
 
@@ -1835,7 +1799,7 @@ Status XvMCHideSurface(Display *display,XvMCSurface *surface)
 	    viaVideoSubPictureOffLocked(&pViaXvMC->xl); 
 	}
     }
-    flushXvMCLowLevel(&pViaXvMC->xl);
+    flushPCIXvMCLowLevel(&pViaXvMC->xl);
     setLowLevelLocking(&pViaXvMC->xl,1);
     hwlUnlock(&pViaXvMC->xl,1);
 	    

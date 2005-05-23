@@ -24,14 +24,14 @@
 
 
 /*
- * Authors: Thomas Hellström 2004.
+ * Authors: Thomas Hellstrom 2004 - 2005.
  */
 
 
 #ifndef VIA_LOWLEVEL_H
 #define VIA_LOWLEVEL_H
 
-#define LL_AGP_CMDBUF_SIZE (4096*32)
+#define LL_AGP_CMDBUF_SIZE (4096*3)
 #define LL_PCI_CMDBUF_SIZE (4096)
 
 #define LL_MODE_DECODER_SLICE 0x01
@@ -59,6 +59,8 @@
 #define VIA_SLICEIDLEVAL         0x00000200
 #define VIA_IDLEVAL              0x00000204   
 
+#include "via_drm.h"
+
 typedef struct{
     CARD32 agp_buffer[LL_AGP_CMDBUF_SIZE];
     CARD32 pci_buffer[LL_PCI_CMDBUF_SIZE];
@@ -70,18 +72,30 @@ typedef struct{
     drm_context_t *drmcontext;
     drmLockPtr hwLock;
     drmAddress mmioAddress;
+    drmAddress fbAddress;
     unsigned curWaitFlags;
     int performLocking;
     unsigned errors;
+    drm_via_mem_t tsMem;
+    CARD32 tsOffset;
+    volatile CARD32 *tsP;
+    CARD32 curTimeStamp;
+    CARD32 lastReadTimeStamp;
+    int agpSync;
+    CARD32 agpSyncTimeStamp;
 }XvMCLowLevel;
 
 
-extern void initXvMCLowLevel(XvMCLowLevel *xl, int fd, drm_context_t *ctx,
+extern int initXvMCLowLevel(XvMCLowLevel *xl, int fd, drm_context_t *ctx,
 			     drmLockPtr hwLock, drmAddress mmioAddress,
-			     int useAgp);
+			     drmAddress fbAddress,int useAgp);
 
-void setLowLevelLocking(XvMCLowLevel *xl, int perFormLocking);
+extern void setLowLevelLocking(XvMCLowLevel *xl, int perFormLocking);
 extern void closeXvMCLowLevel(XvMCLowLevel *xl);
+extern void flushPCIXvMCLowLevel(XvMCLowLevel *xl);
+extern CARD32 viaDMATimeStampLowLevel(XvMCLowLevel *xl);
+extern void setAGPSyncLowLevel(XvMCLowLevel *xl, int val, CARD32 timeStamp);
+
 
 /*
  * These two functions also return and clear the current error status.
@@ -89,18 +103,18 @@ extern void closeXvMCLowLevel(XvMCLowLevel *xl);
 
 extern unsigned flushXvMCLowLevel(XvMCLowLevel *xl);
 extern unsigned syncXvMCLowLevel(XvMCLowLevel *xl, unsigned int mode,
-			    unsigned int sleep);
+				 unsigned int doSleep, CARD32 timeStamp);
 
 extern void hwlUnlock(XvMCLowLevel *xl, int videoLock); 
 extern void hwlLock(XvMCLowLevel *xl, int videoLock); 
 
 
 #define LL_HW_LOCK(xl)							\
-  do {									\
+    do {								\
 	DRM_LOCK((xl)->fd,(xl)->hwLock,*(xl)->drmcontext,0); } while(0);
 #define LL_HW_UNLOCK(xl)					\
     do {DRM_UNLOCK((xl)->fd,(xl)->hwLock,*(xl)->drmcontext);	\
-	} while(0);
+    } while(0);
 
 
 #endif
