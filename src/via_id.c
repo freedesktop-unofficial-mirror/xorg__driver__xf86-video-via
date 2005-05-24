@@ -180,7 +180,7 @@ ViaCheckCardId(ScrnInfoPtr pScrn)
     }
     
     xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
-	       "Unknown Card-Ids (%4X|%4X), report this to unichrome-devel@lists.sf.net ASAP\n"
+	       "Unknown Card-Ids (%4X|%4X), report this to the driver maintainer ASAP\n"
 	       , pVia->PciInfo->subsysVendor, pVia->PciInfo->subsysCard);
     pVia->Id = NULL;
 }

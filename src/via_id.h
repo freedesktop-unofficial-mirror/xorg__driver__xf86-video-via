@@ -54,9 +54,6 @@ enum VIACHIPTAGS {
  * someplace. There is also the possibility that it just does 
  * not exist in the wild.
  *
- * Contact unichrome-devel@lists.sf.net asap if you can
- * provide any further information.
- *
  */
 /* #define PCI_CHIP_CLE3022        0x3022 */ /* CLE266??? */
 #define PCI_CHIP_VT3204         0x3108 /* K8M800 */

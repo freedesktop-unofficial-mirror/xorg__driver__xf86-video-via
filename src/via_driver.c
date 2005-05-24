@@ -455,8 +455,7 @@ static Bool VIAProbe(DriverPtr drv, int flags)
         return FALSE;
 
     xf86Msg(X_NOTICE, "VIA Technologies does not support or endorse this driver in any way.\n");
-    xf86Msg(X_NOTICE, "For support, please refer to http://unichrome.sourceforge.net/ or\n");
-    xf86Msg(X_NOTICE, "your X vendor.\n");
+    xf86Msg(X_NOTICE, "For support please contact the driver maintainer or your X vendor.\n");
 
     if (flags & PROBE_DETECT) {
         foundScreen = TRUE;
@@ -1120,7 +1119,7 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		   "There is no specific support for this device yet in this driver.\n");
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		   "Please contact unichrome.sourceforge.net ASAP to resolve this.\n");
+		   "Please contact the driver maintainer ASAP to resolve this.\n");
     }
 #endif /* HAVE_K8M800 */
 #ifndef HAVE_PM800
@@ -1130,7 +1129,7 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		   "There is no specific support for this device yet in this driver.\n");
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		   "Please contact unichrome.sourceforge.net ASAP to resolve this.\n");
+		   "Please contact the driver maintainer ASAP to resolve this.\n");
     }
 #endif /* HAVE_PM800 */
 
