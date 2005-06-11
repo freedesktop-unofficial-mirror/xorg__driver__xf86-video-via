@@ -187,7 +187,8 @@ static Bool DecideOverlaySupport(ScrnInfoPtr pScrn)
        to avoid numeric overflow */
 
     if ( pVia->ChipId != PCI_CHIP_VT3205 && 
-	 pVia->ChipId != PCI_CHIP_VT3204 ) {
+	 pVia->ChipId != PCI_CHIP_VT3204 &&
+	 pVia->ChipId != PCI_CHIP_VT3259) {
 	CARD32 bandwidth = (mode->HDisplay >> 4) * (mode->VDisplay >> 5) *
 	    pScrn->bitsPerPixel * mode->VRefresh;
 	
@@ -430,7 +431,7 @@ void viaInitVideo(ScreenPtr pScreen)
 	viaFastVidCpy = viaVidCopyInit("video", pScreen);
 
     if ( (pVia->Chipset == VIA_CLE266) || (pVia->Chipset == VIA_KM400) ||
-	(pVia->Chipset == VIA_K8M800) ) {
+	 (pVia->Chipset == VIA_K8M800) || (pVia->Chipset == VIA_PM800)) {
 	num_new = viaSetupAdaptors(pScreen, &newAdaptors);
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
     } else {
@@ -531,6 +532,7 @@ viaSetupAdaptors(ScreenPtr pScreen, XF86VideoAdaptorPtr **adaptors)
  	    viaPortPriv[j].saturation = 10000;
  	    viaPortPriv[j].contrast = 10000;
  	    viaPortPriv[j].hue = 0;
+	    viaPortPriv[j].lastId = 0;
  	    viaPortPriv[j].xv_portnum = j + usedPorts;
  	    REGION_NULL(pScreen, &viaPortPriv[j].clip);
  	}
@@ -739,6 +741,11 @@ viaQueryBestSize(
  */
 static void Flip(VIAPtr pVia, viaPortPrivPtr pPriv, int fourcc, unsigned long DisplayBufferIndex)
 {
+    unsigned long proReg=0;
+    if ((pVia->ChipId == PCI_CHIP_VT3259) &&
+        !(pVia->swov.gdwVideoFlagSW & VIDEO_1_INUSE))
+	proReg = PRO_HQV1_OFFSET;
+    
     switch(fourcc)
     {
         case FOURCC_UYVY:
@@ -750,14 +757,84 @@ static void Flip(VIAPtr pVia, viaPortPrivPtr pPriv, int fourcc, unsigned long Di
 
         case FOURCC_YV12:
         default:
-            while ((VIDInD(HQV_CONTROL) & HQV_SW_FLIP) );
-            VIDOutD(HQV_SRC_STARTADDR_Y, pVia->swov.SWDevice.dwSWPhysicalAddr[DisplayBufferIndex]);
-            VIDOutD(HQV_SRC_STARTADDR_U, pVia->swov.SWDevice.dwSWCbPhysicalAddr[DisplayBufferIndex]);
-            VIDOutD(HQV_SRC_STARTADDR_V, pVia->swov.SWDevice.dwSWCrPhysicalAddr[DisplayBufferIndex]);
-            VIDOutD(HQV_CONTROL,( VIDInD(HQV_CONTROL)&~HQV_FLIP_ODD) |HQV_SW_FLIP|HQV_FLIP_STATUS);
+            while ((VIDInD(HQV_CONTROL + proReg) & HQV_SW_FLIP) );
+            VIDOutD(HQV_SRC_STARTADDR_Y + proReg, 
+		    pVia->swov.SWDevice.dwSWPhysicalAddr[DisplayBufferIndex]);
+	    if (pVia->ChipId == PCI_CHIP_VT3259) {
+		VIDOutD(HQV_SRC_STARTADDR_U + proReg, 
+			pVia->swov.SWDevice.dwSWCrPhysicalAddr[DisplayBufferIndex]);
+	    } else {
+		VIDOutD(HQV_SRC_STARTADDR_U, 
+			pVia->swov.SWDevice.dwSWCbPhysicalAddr[DisplayBufferIndex]);
+		VIDOutD(HQV_SRC_STARTADDR_V, 
+			pVia->swov.SWDevice.dwSWCrPhysicalAddr[DisplayBufferIndex]);
+	    }
+            VIDOutD(HQV_CONTROL + proReg,
+		    ( VIDInD(HQV_CONTROL + proReg)&~HQV_FLIP_ODD) |HQV_SW_FLIP|HQV_FLIP_STATUS);
             break;
     }
 }
+
+/*
+ * Slow and dirty. NV12 blit.
+ */
+
+static void 
+nv12cp(unsigned char *dst,
+       const unsigned char *src,
+       int dstPitch,
+       int w,
+       int h, int yuv422)
+{
+    int count;
+    int x, dstAdd;
+    const unsigned char* src2;
+
+    /* Blit luma component as a fake YUY2 assembler blit. */
+
+    (*viaFastVidCpy)(dst, src, dstPitch, w >> 1, h, TRUE);
+
+    src += w*h;
+    dst += dstPitch*h;
+    dstAdd = dstPitch - w;
+
+    /* UV component is 1/2 of Y */
+    w >>= 1;
+
+   /* copy V(Cr),U(Cb) components to video memory */
+    count = h/2;
+
+    src2 = src + w*count;
+    while(count--) {
+	x=w;
+	while(x > 3) {
+	    register CARD32 
+		dst32,
+		src32 = *((CARD32 *) src),
+		src32_2 = *((CARD32 *) src2);
+	    dst32 = 
+		(src32_2 & 0xff) | ((src32 & 0xff) << 8) |
+		((src32_2 & 0x0000ff00) << 8) | ((src32 & 0x0000ff00) << 16);
+	    *((CARD32 *) dst) = dst32;
+	    dst +=4;
+	    dst32 = 
+		((src32_2 & 0x00ff0000) >> 16) | ((src32 & 0x00ff0000) >> 8) |
+		((src32_2 & 0xff000000) >> 8) | (src32 & 0xff000000);
+	    *((CARD32 *) dst) = dst32;
+	    dst +=4;
+	    x -= 4;
+	    src += 4;
+	    src2 += 4;
+	}
+        while(x--) {
+	    *dst++ = *src2++;
+	    *dst++ = *src++;
+        }   
+	dst += dstAdd;
+    }
+}
+
+
 
 static int
 viaPutImage( 
@@ -814,7 +891,13 @@ viaPutImage(
 
 		switch(id) {
 		case FOURCC_YV12:
-		    (*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],buf,dstPitch,width,height,0);
+		    if (pVia->ChipId == PCI_CHIP_VT3259) {
+			nv12cp(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+			       buf,dstPitch,width,height,0);
+		    } else {
+			(*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+					 buf,dstPitch,width,height,0);
+		    }
 		    break;
 		case FOURCC_UYVY:
 		case FOURCC_YUY2:
