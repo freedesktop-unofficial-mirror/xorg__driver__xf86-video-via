@@ -129,7 +129,7 @@ static XF86AttributeRec AttributesG[NUM_ATTRIBUTES_G] =
    {XvSettable | XvGettable,0,1,"XV_AUTOPAINT_COLORKEY"}
 };
 
-#define NUM_IMAGES_G 3
+#define NUM_IMAGES_G 5
 
 static XF86ImageRec ImagesG[NUM_IMAGES_G] =
 {
@@ -157,7 +157,41 @@ static XF86ImageRec ImagesG[NUM_IMAGES_G] =
         {'Y','V','U',
           0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
         XvTopToBottom
-    }    
+    },
+    { /* RGB 555 */
+      FOURCC_RV15,
+      XvRGB,
+      LSBFirst,
+      {'R','V','1','5',
+       0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+      16,
+      XvPacked,
+      1,
+      15, 0x7C00, 0x03E0, 0x001F,
+      0, 0, 0,
+      0, 0, 0,
+      0, 0, 0,
+      {'R', 'V', 'B',0,
+       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+      XvTopToBottom
+    },
+    { /* RGB 565 */
+      FOURCC_RV16,
+      XvRGB,
+      LSBFirst,
+      {'R','V','1','6',
+       0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+      16,
+      XvPacked,
+      1,
+      16, 0xF800, 0x07E0, 0x001F,
+      0, 0, 0,
+      0, 0, 0,
+      0, 0, 0,
+      {'R', 'V', 'B',0,
+       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+      XvTopToBottom
+    }
 };
 
 static char * XvAdaptorName[XV_ADAPT_NUM] =
@@ -750,8 +784,11 @@ static void Flip(VIAPtr pVia, viaPortPrivPtr pPriv, int fourcc, unsigned long Di
     {
         case FOURCC_UYVY:
         case FOURCC_YUY2:
+        case FOURCC_RV15:
+        case FOURCC_RV16:
             while ((VIDInD(HQV_CONTROL) & HQV_SW_FLIP) );
-            VIDOutD(HQV_SRC_STARTADDR_Y, pVia->swov.SWDevice.dwSWPhysicalAddr[DisplayBufferIndex]);
+            VIDOutD(HQV_SRC_STARTADDR_Y + proReg, 
+		    pVia->swov.SWDevice.dwSWPhysicalAddr[DisplayBufferIndex]);
             VIDOutD(HQV_CONTROL,( VIDInD(HQV_CONTROL)&~HQV_FLIP_ODD) |HQV_SW_FLIP|HQV_FLIP_STATUS);
             break;
 
@@ -901,8 +938,11 @@ viaPutImage(
 		    break;
 		case FOURCC_UYVY:
 		case FOURCC_YUY2:
+		case FOURCC_RV15:
+		case FOURCC_RV16:
 		default:
-		    (*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],buf,dstPitch,width,height,1);
+		    (*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+				     buf,dstPitch,width,height,1);
 		    break;
 		}
 	    } 
@@ -1058,6 +1098,8 @@ viaQueryImageAttributes(
       break;
     case FOURCC_UYVY:  /*Packed format : UYVY -4:2:2*/
     case FOURCC_YUY2:  /*Packed format : YUY2 -4:2:2*/
+    case FOURCC_RV15:
+    case FOURCC_RV16:
     default:
         size = *w << 1;
         if(pitches) 
