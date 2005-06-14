@@ -45,6 +45,70 @@ ViaVbeAdjustFrame(int scrnIndex, int x, int y, int flags)
     VBESetDisplayStart(pVia->pVbe, x, y, TRUE);
 }
 
+
+static Bool
+ViaVbeSetRefresh(ScrnInfoPtr pScrn, int maxRefresh)
+{
+    VIAPtr  pVia = VIAPTR(pScrn);
+    VIABIOSInfoPtr  pBIOSInfo = pVia->pBIOSInfo;
+    int RealOff;
+    pointer page = NULL;
+    vbeInfoPtr pVbe = pVia->pVbe;
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ViaVbeSetRefresh\n"));
+    page = xf86Int10AllocPages(pVbe->pInt10, 1, &RealOff);
+    if (!page)
+        return FALSE;
+    pVbe->pInt10->ax = 0x4F14;
+    pVbe->pInt10->bx = 0x0001;
+    pVbe->pInt10->cx = 0;
+    pVbe->pInt10->dx = 0;
+    pVbe->pInt10->di = 0;
+    pVbe->pInt10->num = 0x10;
+
+    /* Set Active Device and Translate BIOS byte definition */
+    if (pBIOSInfo->CrtActive)
+        pVbe->pInt10->cx = 0x01;
+    if (pBIOSInfo->PanelActive)
+        pVbe->pInt10->cx |= 0x02;
+    if (pBIOSInfo->TVActive)
+        pVbe->pInt10->cx |= 0x04;
+
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Active Device: %d\n",
+                     pVbe->pInt10->cx));
+
+    if (maxRefresh >= 120) {
+	pVbe->pInt10->di = 10;
+    } else if (maxRefresh >= 100) {
+	pVbe->pInt10->di = 9;
+    } else if (maxRefresh >= 85) {
+	pVbe->pInt10->di = 7;
+    } else if (maxRefresh >= 75) {
+	pVbe->pInt10->di = 5;
+    } else {
+	pVbe->pInt10->di = 0;
+    }
+    DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Refresh Rate Index: %d\n",
+                     pVbe->pInt10->di));
+
+    /* Real execution */
+    xf86ExecX86int10(pVbe->pInt10);
+
+    if (pVbe->pInt10->ax != 0x4F)
+    {
+        DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                         "Via BIOS Set Device Refresh Rate fail!\n"));
+        if (page)
+            xf86Int10FreePages(pVbe->pInt10, page, 1);
+        return FALSE;
+    }
+
+    if (page)
+        xf86Int10FreePages(pVbe->pInt10, page, 1);
+
+    return TRUE;
+}
+
 Bool
 ViaVbeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
@@ -66,10 +130,11 @@ ViaVbeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     /* enable linear addressing */
     mode |= 1 << 14;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Trying VBE Mode %dx%d (0x%x) :\n", 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Trying VBE Mode %dx%d (0x%x)\n", 
 	       (int) data->data->XResolution,
 	       (int) data->data->YResolution,
 	       mode & ~(1 << 11));
+    ViaVbeSetRefresh(pScrn, data->block->RefreshRate/100);
     if (VBESetVBEMode(pVia->pVbe, mode, data->block) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VBESetVBEMode failed");
 	if ((data->block || (data->mode & (1 << 11))) &&
@@ -99,8 +164,6 @@ ViaVbeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #endif 
 
     ViaVbeAdjustFrame(pScrn->scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-    VIAAccelSync(pScrn);
-
 
     return (TRUE);
 }
