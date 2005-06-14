@@ -41,7 +41,7 @@ VT162xPrintRegs(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Printing registers for %s\n",
 	       pBIOSInfo->TVI2CDev->DevName);
 
-    for (i = 0; i < 0x68; i++) {
+    for (i = 0; i < pBIOSInfo->TVNumRegs; i++) {
 	xf86I2CReadByte(pBIOSInfo->TVI2CDev, i, &buf);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TV%02X: 0x%02X\n", i, buf);
     }
@@ -126,12 +126,14 @@ ViaVT162xDetect(ScrnInfoPtr pScrn, I2CBusPtr pBus, CARD8 Address)
 static void
 VT162xSave(ScrnInfoPtr pScrn)
 {
+    int i;
     VIABIOSInfoPtr pBIOSInfo = VIAPTR(pScrn)->pBIOSInfo;
-    CARD8 buf = 0x00;
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VT162xSave\n"));
 
-    xf86I2CWriteRead(pBIOSInfo->TVI2CDev, &buf,1, pBIOSInfo->TVRegs, 0x68);
+    for (i = 0; i < pBIOSInfo->TVNumRegs; i++)
+      xf86I2CReadByte(pBIOSInfo->TVI2CDev, i, &(pBIOSInfo->TVRegs[i]));
+
 }
 
 /*
@@ -145,7 +147,7 @@ VT162xRestore(ScrnInfoPtr pScrn)
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VT162xRestore\n"));
 
-    for (i = 0; i < 0x68; i++)
+    for (i = 0; i < pBIOSInfo->TVNumRegs; i++)
 	xf86I2CWriteByte(pBIOSInfo->TVI2CDev, i, pBIOSInfo->TVRegs[i]);
 }
 
@@ -459,7 +461,8 @@ VT1621ModeCrtc(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	hwp->writeCrtc(hwp, 0x6B, 0x80);
 	hwp->writeCrtc(hwp, 0x6C, Table.PrimaryCR6C);
     }
-    pBIOSInfo->ClockExternal = TRUE;
+    if ((pVia->Chipset != VIA_K8M800) && (pVia->Chipset != VIA_PM800))
+	pBIOSInfo->ClockExternal = TRUE;
     ViaCrtcMask(hwp, 0x6A, 0x40, 0x40);
     ViaCrtcMask(hwp, 0x6C, 0x01, 0x01);
 }
@@ -596,7 +599,8 @@ VT1622ModeCrtc(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		hwp->writeCrtc(hwp, 0x6C, Table.PrimaryCR6C);
         }
     }
-    pBIOSInfo->ClockExternal = TRUE;
+    if ((pVia->Chipset != VIA_K8M800) && (pVia->Chipset != VIA_PM800))
+	pBIOSInfo->ClockExternal = TRUE;
     ViaCrtcMask(hwp, 0x6A, 0x40, 0x40);
     ViaCrtcMask(hwp, 0x6C, 0x01, 0x01);
     ViaSeqMask(hwp, 0x1E, 0xC0, 0xC0); /* Enable DI0/DVP0 */
@@ -655,6 +659,7 @@ ViaVT162xInit(ScrnInfoPtr pScrn)
 	pBIOSInfo->TVPower = VT1621Power;
 	pBIOSInfo->TVModes = VT1621Modes;
 	pBIOSInfo->TVPrintRegs = VT162xPrintRegs;
+	pBIOSInfo->TVNumRegs = 0x68;
 	break;
     case VIA_VT1622:
 	pBIOSInfo->TVSave = VT162xSave;
@@ -666,6 +671,7 @@ ViaVT162xInit(ScrnInfoPtr pScrn)
 	pBIOSInfo->TVPower = VT1622Power;
 	pBIOSInfo->TVModes = VT1622Modes;
 	pBIOSInfo->TVPrintRegs = VT162xPrintRegs;
+	pBIOSInfo->TVNumRegs = 0x68;
 	break;
     case VIA_VT1623:
 	pBIOSInfo->TVSave = VT162xSave;
@@ -677,6 +683,7 @@ ViaVT162xInit(ScrnInfoPtr pScrn)
 	pBIOSInfo->TVPower = VT1622Power;
 	pBIOSInfo->TVModes = VT1623Modes;
 	pBIOSInfo->TVPrintRegs = VT162xPrintRegs;
+	pBIOSInfo->TVNumRegs = 0x6C;
 	break;
     default:
 	break;
