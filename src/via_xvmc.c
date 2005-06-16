@@ -102,13 +102,13 @@ typedef struct{
 
 
 static int ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
-                           int *num_priv, long **priv );
+                           int *num_priv, INT32 **priv );
 static void ViaXvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext);
 static int ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
-                           int *num_priv, long **priv );
+                           int *num_priv, INT32 **priv );
 static void ViaXvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf);
 static int ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSurf,
-                               int *num_priv, long **priv );
+                               int *num_priv, INT32 **priv );
 static void ViaXvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp);
 static int viaXvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute, 
 				       INT32 value,pointer data);
@@ -335,12 +335,6 @@ ViaInitXVMC(ScreenPtr pScreen)
       return;
   }
 
-  if (sizeof(unsigned long) == 8) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		 "[XvMC] XvMC libs are not 64 bit clean. Disabling XvMC.\n");
-      return;
-  }
-      
   if (!pVia->directRenderingEnabled) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "[XvMC] Cannot use XvMC without DRI!\n");
@@ -446,7 +440,7 @@ void ViaCleanupXVMC(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr *XvAdaptors,
 
 static int
 ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
-		      int *num_priv, long **priv )
+		      int *num_priv, INT32 **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -545,7 +539,7 @@ ViaXvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
 static int
 ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
-		      int *num_priv, long **priv )
+		      int *num_priv, INT32 **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -594,7 +588,7 @@ ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 #endif
   *num_priv = numBuffers + 2;
 
-  *priv = (long *)xcalloc(*num_priv,sizeof(long));
+  *priv = (INT32 *)xcalloc(*num_priv,sizeof(INT32));
 
   if(!*priv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -642,7 +636,7 @@ ViaXvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
 static int
 ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
-			 int *num_priv, long **priv )
+			 int *num_priv, INT32 **priv )
 {
   VIAPtr pVia = VIAPTR(pScrn);
   ViaXvMCPtr vXvMC = &(pVia->xvmc);
@@ -666,7 +660,7 @@ ViaXvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
       return BadAlloc;
   }
 
-  *priv = (long *)xcalloc(3,sizeof(long));
+  *priv = (INT32 *)xcalloc(3,sizeof(INT32));
 
   if(!*priv) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
