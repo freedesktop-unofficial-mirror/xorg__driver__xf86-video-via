@@ -76,7 +76,7 @@ static Bool VIAMapMMIO(ScrnInfoPtr pScrn);
 static Bool VIAMapFB(ScrnInfoPtr pScrn);
 static void VIAUnmapMem(ScrnInfoPtr pScrn);
 
-DriverRec VIA =
+_X_EXPORT DriverRec VIA =
 {
     VIA_VERSION,
     DRIVER_NAME,
@@ -337,7 +337,7 @@ static XF86ModuleVersionInfo VIAVersRec = {
     {0, 0, 0, 0}
 };
 
-XF86ModuleData viaModuleData = {&VIAVersRec, VIASetup, NULL};
+_X_EXPORT XF86ModuleData viaModuleData = {&VIAVersRec, VIASetup, NULL};
 
 static pointer VIASetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
