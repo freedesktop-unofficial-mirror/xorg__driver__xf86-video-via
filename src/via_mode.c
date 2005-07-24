@@ -764,7 +764,8 @@ ViaGetMemoryBandwidth(ScrnInfoPtr pScrn)
 	else
 	    return ViaBandwidthTable[VIA_BW_CLE266C].Bandwidth[pVia->MemClk];
     case VIA_KM400:
-	if (pVia->ChipRev < 0x8F)
+        /* 0x84 is earliest public device, 0x80 is more likely though */
+	if (pVia->ChipRev < 0x84)
 	    return ViaBandwidthTable[VIA_BW_KM400].Bandwidth[pVia->MemClk];
 	else
 	    return ViaBandwidthTable[VIA_BW_KM400A].Bandwidth[pVia->MemClk];
@@ -1299,7 +1300,7 @@ ViaModePrimaryVGA(ScrnInfoPtr pScrn, DisplayModePtr mode)
     temp = 0x23;
     if (mode->Flags & V_NHSYNC)
 	temp |= 0x40;
-    if (mode->Flags & V_NHSYNC)
+    if (mode->Flags & V_NVSYNC)
 	temp |= 0x80;
     temp |= 0x0C; /* Undefined/external clock */
     hwp->writeMiscOut(hwp, temp);
