@@ -111,8 +111,8 @@ unsigned long VIAAllocLinear(VIAMemPtr mem, ScrnInfoPtr pScrn, unsigned long siz
 	    mem->drm.context = 1;
 	    mem->drm.size = size;
 	    mem->drm.type = VIDEO;
-	    ret = drmCommandWrite(mem->drm_fd, DRM_VIA_ALLOCMEM, &mem->drm, 
-				  sizeof(drm_via_mem_t));
+	    ret = drmCommandWriteRead(mem->drm_fd, DRM_VIA_ALLOCMEM, &mem->drm, 
+				      sizeof(drm_via_mem_t));
 	    if (ret || (size != mem->drm.size)) {
 		/*
 		 * Try XY Fallback before failing.
