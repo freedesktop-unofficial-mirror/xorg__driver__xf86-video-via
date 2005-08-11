@@ -1336,7 +1336,7 @@ updateLowLevelBuf(XvMCLowLevel *xl, LowLevelBuffer *buf,
     
     if (size != mem->size) {
 	if (mem->size) 
-	    drmCommandWrite(xl->fd, DRM_VIA_FREEMEM, mem, sizeof(mem)); 
+	    drmCommandWrite(xl->fd, DRM_VIA_FREEMEM, mem, sizeof(*mem)); 
 	mem->context = *(xl->drmcontext);
 	mem->size = size;
 	mem->type = VIDEO;
