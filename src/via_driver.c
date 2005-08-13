@@ -2234,6 +2234,7 @@ VIAAdjustFrame(int scrnIndex, int x, int y, int flags)
 
     if (pVia->pVbe) {
 	ViaVbeAdjustFrame(scrnIndex, x, y, flags);
+	VIAVidAdjustFrame(pScrn, x, y);
 	return;
     }
 
