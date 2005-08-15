@@ -711,9 +711,8 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
 	return FALSE;
     }
     pVIADRI->regs.size = VIA_MMIO_REGSIZE;
-    pVIADRI->regs.map = 0;
     pVIADRI->regs.handle = pVia->registerHandle;
-    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] mmio Registers = 0x%08lx\n",
+    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] mmio Registers = 0x%08x\n",
 	pVIADRI->regs.handle);
     
     pVIADRI->drixinerama = pVia->drixinerama;
@@ -908,7 +907,7 @@ static Bool VIADRIMapInit(ScreenPtr pScreen, VIAPtr pVia)
     }
     
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	"[drm] register handle = 0x%08lx\n", pVia->registerHandle);
+	"[drm] register handle = 0x%08x\n", pVia->registerHandle);
 
     return TRUE;
 }

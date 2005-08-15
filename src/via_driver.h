@@ -127,7 +127,6 @@ typedef struct {
     int nContexts,nSurfaces;
     drm_handle_t mmioBase,fbBase,sAreaBase;
     unsigned sAreaSize;
-    drmAddress sAreaAddr;
     unsigned activePorts;
 }ViaXvMC, *ViaXvMCPtr;
 
@@ -257,8 +256,8 @@ typedef struct _VIA {
     int 		numVisualConfigs;
     __GLXvisualConfig* 	pVisualConfigs;
     VIAConfigPrivPtr 	pVisualConfigsPriv;
-    unsigned long 	agpHandle;
-    unsigned long 	registerHandle;
+    drm_handle_t 	agpHandle;
+    drm_handle_t 	registerHandle;
     unsigned long 	agpAddr;
     drmAddress          agpMappedAddr;
     unsigned char 	*agpBase;
