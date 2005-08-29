@@ -18,6 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+SUBDIRS = xvmc
 # this is obnoxious:
 # -module lets us name the module exactly how we want
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
@@ -63,5 +64,6 @@ via_drv_la_SOURCES = \
 if DRI
 via_drv_la_SOURCES += \
          via_dri.c \
-         via_dri.h
+         via_dri.h \
+         via_drmclient.h
 endif

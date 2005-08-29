@@ -96,5 +96,8 @@ XORG_RELEASE_VERSION
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+	src/xvmc/Makefile
+	src/xvmc/unichrome/Makefile
+	src/xvmc/unichromeProA/Makefile
 	man/Makefile
 ])
