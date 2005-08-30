@@ -49,11 +49,7 @@ typedef struct {
     int priv2;
     int fbOffset;
     int fbSize;
-#ifdef XFree86Server
     Bool drixinerama;
-#else
-    char drixinerama;
-#endif
     int backOffset;
     int depthOffset;
     int textureOffset;
