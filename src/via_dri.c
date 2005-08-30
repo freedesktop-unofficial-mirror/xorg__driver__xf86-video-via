@@ -662,7 +662,7 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     /* For now the mapping works by using a fixed size defined
     * in the SAREA header
     */
-    if (sizeof(XF86DRISAREARec)+sizeof(VIASAREAPriv) > SAREA_MAX) {
+    if (sizeof(XF86DRISAREARec)+sizeof(drm_via_sarea_t) > SAREA_MAX) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Data does not fit in SAREA\n");
 	DRIDestroyInfoRec(pVia->pDRIInfo);
 	pVia->pDRIInfo = NULL;
@@ -712,8 +712,8 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
     }
     pVIADRI->regs.size = VIA_MMIO_REGSIZE;
     pVIADRI->regs.handle = pVia->registerHandle;
-    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] mmio Registers = 0x%08x\n",
-	pVIADRI->regs.handle);
+    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] mmio Registers = 0x%08lx\n",
+               (unsigned long) pVIADRI->regs.handle);
     
     pVIADRI->drixinerama = pVia->drixinerama;
 
@@ -816,9 +816,9 @@ VIADRIFinishScreenInit(ScreenPtr pScreen)
 
     /* set SAREA value */
     {
-	VIASAREAPriv *saPriv;
+	drm_via_sarea_t *saPriv;
 
-	saPriv=(VIASAREAPriv*)DRIGetSAREAPrivate(pScreen);
+	saPriv=(drm_via_sarea_t *)DRIGetSAREAPrivate(pScreen);
 	assert(saPriv);
 	memset(saPriv, 0, sizeof(*saPriv));
 	saPriv->ctxOwner = -1;
@@ -906,8 +906,8 @@ static Bool VIADRIMapInit(ScreenPtr pScreen, VIAPtr pVia)
 	return FALSE;
     }
     
-    xf86DrvMsg(pScreen->myNum, X_INFO,
-	"[drm] register handle = 0x%08x\n", pVia->registerHandle);
+    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] register handle = 0x%08lx\n",
+               (unsigned long) pVia->registerHandle);
 
     return TRUE;
 }

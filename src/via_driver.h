@@ -372,4 +372,12 @@ unsigned long viaXvMCPutImageSize(ScrnInfoPtr pScrn);
 /* via_i2c.c */
 void ViaI2CInit(ScrnInfoPtr pScrn);
 
+#ifdef XF86DRI
+Bool VIADRIScreenInit(ScreenPtr pScreen);
+void VIADRICloseScreen(ScreenPtr pScreen);
+Bool VIADRIFinishScreenInit(ScreenPtr pScreen);
+void VIADRIRingBufferCleanup(ScrnInfoPtr pScrn);
+Bool VIADRIRingBufferInit(ScrnInfoPtr pScrn);
+#endif /* XF86DRI */
+
 #endif /* _VIA_DRIVER_H_ */
