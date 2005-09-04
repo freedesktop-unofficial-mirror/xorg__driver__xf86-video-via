@@ -502,6 +502,10 @@ void viaInitVideo(ScreenPtr pScreen)
 	ViaInitXVMC(pScreen);
 #endif
 	viaSetColorSpace(pVia,0,0,0,0,TRUE);
+	pVia->swov.panning_x = 0;
+	pVia->swov.panning_y = 0;
+	pVia->swov.oldPanningX = 0;
+	pVia->swov.oldPanningY = 0;
     }
 }
 
@@ -550,7 +554,21 @@ viaReputImage(ScrnInfoPtr pScrn,
     DDUPDATEOVERLAY      UpdateOverlay_Video;
     LPDDUPDATEOVERLAY    lpUpdateOverlay = &UpdateOverlay_Video;
     viaPortPrivPtr pPriv = (viaPortPrivPtr)data;
+    VIAPtr  pVia = VIAPTR(pScrn);
 
+    if(!RegionsEqual(&pPriv->clip, clipBoxes)) {
+	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);    
+	if (pPriv->autoPaint) 
+	    xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes); 
+    } 
+
+    if (drw_x == pPriv->old_drw_x &&
+	drw_y == pPriv->old_drw_y &&
+	pVia->swov.oldPanningX == pVia->swov.panning_x &&
+	pVia->swov.oldPanningY == pVia->swov.panning_y)
+      
+	return Success;
+	
     lpUpdateOverlay->SrcLeft = pPriv->old_src_x;
     lpUpdateOverlay->SrcTop = pPriv->old_src_y;
     lpUpdateOverlay->SrcRight = pPriv->old_src_x + pPriv->old_src_w;

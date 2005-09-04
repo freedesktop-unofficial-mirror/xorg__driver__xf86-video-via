@@ -155,6 +155,8 @@ typedef struct  {
 /* For panning mode use */
     int panning_x;
     int panning_y;
+    int oldPanningX;
+    int oldPanningY;
 } swovRec, *swovPtr;
 
 #endif /* _VIA_PRIV_H_ */

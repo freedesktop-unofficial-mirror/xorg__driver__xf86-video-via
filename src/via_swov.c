@@ -1922,7 +1922,9 @@ VIAVidUpdateOverlay(ScrnInfoPtr pScrn, LPDDUPDATEOVERLAY pUpdate)
 
 
     panDX = pVia->swov.panning_x; 
-    panDY = pVia->swov.panning_y; 
+    panDY = pVia->swov.panning_y;
+    pVia->swov.oldPanningX = pVia->swov.panning_x;
+    pVia->swov.oldPanningY = pVia->swov.panning_y; 
 
     pUpdate->DstLeft   -= panDX;
     pUpdate->DstTop    -= panDY;
