@@ -38,10 +38,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <fourcc.h>
-#include <Xv.h>
+#include <X11/extensions/Xv.h>
 #include <xf86drm.h>
 #include <pthread.h>
-#include "vldXvMC.h"
+#include <X11/extensions/vldXvMC.h>
 #include "xf86dri.h"
 #include "driDrawable.h"
     
