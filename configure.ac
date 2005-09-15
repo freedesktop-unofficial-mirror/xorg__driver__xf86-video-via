@@ -51,7 +51,7 @@ AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
               [DRI="$enableval"],
               [DRI=auto])
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server xproto])
+PKG_CHECK_MODULES(XORG, [xorg-server xproto xvmc])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
