@@ -1,3 +1,4 @@
+if DRI
 SUBDIRS = unichrome unichromeProA
 
 EXTRA_DIST = driDrawable.c \
@@ -7,3 +8,4 @@ EXTRA_DIST = driDrawable.c \
              viaXvMCPriv.h \
              viaLowLevel.h
 
+endif
