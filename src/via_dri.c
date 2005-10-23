@@ -635,9 +635,9 @@ Bool VIADRIScreenInit(ScreenPtr pScreen)
         ((pciConfigPtr)pVia->PciInfo->thisCard)->busnum,
         ((pciConfigPtr)pVia->PciInfo->thisCard)->devnum,
         ((pciConfigPtr)pVia->PciInfo->thisCard)->funcnum);
-    pDRIInfo->ddxDriverMajorVersion = VIA_DRI_VERSION_MAJOR;
-    pDRIInfo->ddxDriverMinorVersion = VIA_DRI_VERSION_MINOR;
-    pDRIInfo->ddxDriverPatchVersion = PATCHLEVEL;
+    pDRIInfo->ddxDriverMajorVersion = VIA_DRIDDX_VERSION_MAJOR;
+    pDRIInfo->ddxDriverMinorVersion = VIA_DRIDDX_VERSION_MINOR;
+    pDRIInfo->ddxDriverPatchVersion = VIA_DRIDDX_VERSION_PATCH;
     pDRIInfo->frameBufferPhysicalAddress = (pointer) pVia->FrameBufferBase;
     pDRIInfo->frameBufferSize = pVia->videoRambytes;  
   

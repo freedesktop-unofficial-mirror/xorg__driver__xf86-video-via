@@ -23,6 +23,7 @@
  */
 /*
  * Keep this file in perfect sync between the ddx and dri drivers.
+ * At least bump the VIA_DRIDDX_VERSION defines appropriately.
  *
  */
 #ifndef _VIA_DRI_H_
@@ -30,8 +31,13 @@
 
 #define VIA_MAX_DRAWABLES 256
 
-#define VIA_DRI_VERSION_MAJOR		4
-#define VIA_DRI_VERSION_MINOR		1
+#define VIA_DRIDDX_VERSION_MAJOR  4
+#define VIA_DRIDDX_VERSION_MINOR  2
+#define VIA_DRIDDX_VERSION_PATCH  0
+
+#ifndef XFree86Server
+typedef int Bool;
+#endif
 
 typedef struct {
     drm_handle_t handle;
