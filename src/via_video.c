@@ -1101,10 +1101,12 @@ viaPutImage(
 	    pVia->VideoStatus |= VIDEO_SWOV_ON;
 
 	    /*  BitBlt: Draw the colorkey rectangle */
-	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);    
-	    if (pPriv->autoPaint) 
-	        xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes); 
-		
+	    if(!RegionsEqual(&pPriv->clip, clipBoxes)) {
+		REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);    
+		if (pPriv->autoPaint) 
+		    xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes); 
+	    }		
+
 	    /*
 	     *  Update video overlay
 	     */
