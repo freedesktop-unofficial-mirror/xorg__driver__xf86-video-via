@@ -764,17 +764,27 @@ ViaGetMemoryBandwidth(ScrnInfoPtr pScrn)
 	else
 	    return ViaBandwidthTable[VIA_BW_CLE266C].Bandwidth[pVia->MemClk];
     case VIA_KM400:
-        /* 0x84 is earliest public device, 0x80 is more likely though */
-	if (pVia->ChipRev < 0x84)
-	    return ViaBandwidthTable[VIA_BW_KM400].Bandwidth[pVia->MemClk];
-	else
-	    return ViaBandwidthTable[VIA_BW_KM400A].Bandwidth[pVia->MemClk];
+        {
+            /* is this a KM400 or a P4M800 ? */
+            Bool KM400 = FALSE;
+            
+            /* check host bridge pci device id. */
+            if (pciReadWord(0x00000000, 0x02) == 0x3205)
+                KM400 = TRUE;
+            
+            /* 0x84 is earliest known KM400A device, 0x80 is more likely though */
+            if (KM400 && (pVia->ChipRev < 0x84))
+                return ViaBandwidthTable[VIA_BW_KM400].Bandwidth[pVia->MemClk];
+            else
+                return ViaBandwidthTable[VIA_BW_KM400A].Bandwidth[pVia->MemClk];
+        }
     case VIA_K8M800:
 	return ViaBandwidthTable[VIA_BW_K8M800].Bandwidth[pVia->MemClk];
     case VIA_PM800:
 	return ViaBandwidthTable[VIA_BW_PM800].Bandwidth[pVia->MemClk];
     default:
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "ViaBandwidthAllowed: Unknown Chipset.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Unknown Chipset.\n",
+                   __FUNCTION__);
 	return VIA_BW_MIN;
     }
 }
