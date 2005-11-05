@@ -783,8 +783,8 @@ ViaGetMemoryBandwidth(ScrnInfoPtr pScrn)
     case VIA_PM800:
 	return ViaBandwidthTable[VIA_BW_PM800].Bandwidth[pVia->MemClk];
     default:
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Unknown Chipset.\n",
-                   __FUNCTION__);
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "ViaGetMemoryBandwidth: Unknown Chipset.\n");
 	return VIA_BW_MIN;
     }
 }
