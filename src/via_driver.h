@@ -67,7 +67,7 @@
 #define DRIVER_NAME     "via"
 #define VERSION_MAJOR   0
 #define VERSION_MINOR   1
-#define PATCHLEVEL      31
+#define PATCHLEVEL      32
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
 #define VIA_MAX_ACCEL_X         (2047)
