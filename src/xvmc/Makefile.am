@@ -1,4 +1,4 @@
-if DRI
+if XVMC
 SUBDIRS = unichrome unichromeProA
 
 EXTRA_DIST = driDrawable.c \

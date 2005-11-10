@@ -1,3 +1,10 @@
+2005-11-09  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/xvmc/Makefile.am:
+	Don't build XvMC support on anything but x86 and amd64; require
+	libdrm 1.0.5 for DRI or XvMC support.
+
 2005-11-09  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:
