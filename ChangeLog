@@ -1,7 +1,10 @@
 2005-11-14  Adam Jackson  <ajax@freedesktop.org>
 
 	* src/xvmc/Makefile.am:
-	Bug #5024: Move EXTRA_DIST outside the ifdef.
+	Bug #5024: Move EXTRA_DIST outside the ifdef. (Juerg Billeter)
+
+	* configure.ac:
+	Bug #5048: Fix x86 check. (Cedric Berger)
 
 2005-11-09  Adam Jackson  <ajax@freedesktop.org>
 

@@ -92,7 +92,7 @@ if test "$DRI" = yes; then
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
         case "$host_cpu" in
-            x86*)
+            i*86)
                 XVMC=yes ;;
             amd64*|x86_64*)
                 XVMC=yes ;;
