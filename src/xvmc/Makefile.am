@@ -1,5 +1,6 @@
 if XVMC
 SUBDIRS = unichrome unichromeProA
+endif
 
 EXTRA_DIST = driDrawable.c \
              driDrawable.h \
@@ -8,5 +9,3 @@ EXTRA_DIST = driDrawable.c \
              xf86dristr.h \
              viaXvMCPriv.h \
              viaLowLevel.h
-
-endif
