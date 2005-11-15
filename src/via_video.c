@@ -676,7 +676,7 @@ viaSetupAdaptors(ScreenPtr pScreen, XF86VideoAdaptorPtr **adaptors)
  	    viaPortPriv[j].saturation = 10000;
  	    viaPortPriv[j].contrast = 10000;
  	    viaPortPriv[j].hue = 0;
-	    viaPortPriv[j].lastId = 0;
+	    viaPortPriv[j].FourCC = 0;
  	    viaPortPriv[j].xv_portnum = j + usedPorts;
  	    REGION_NULL(pScreen, &viaPortPriv[j].clip);
  	}

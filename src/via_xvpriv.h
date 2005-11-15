@@ -41,7 +41,6 @@ typedef struct {
     int  saturation;
     int  contrast;
     int  hue;
-    int  lastId;
     RegionRec clip;
     CARD32    colorKey;
     Bool      autoPaint;
