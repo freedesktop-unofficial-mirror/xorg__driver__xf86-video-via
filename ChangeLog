@@ -1,3 +1,10 @@
+2005-11-26  Thomas Hellstrom  <unichrome-at-shipmail-dot-org>
+
+	* src/xvmc/unichrome/Makefile.am:
+	* src/xvmc/unichromeProA/Makefile.am:
+	Bug #5067 <https://bugs.freedesktop.org/show_bug.cgi?id=5067>
+	Link libdrm to the via XvMC libraries. (Cedric Berger)
+
 2005-11-19  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:

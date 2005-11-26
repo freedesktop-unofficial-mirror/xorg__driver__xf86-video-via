@@ -8,4 +8,4 @@ libviaXvMC_la_SOURCES = \
 	../xf86dri.c
 
 libviaXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -I$(top_srcdir)/src -I$(top_srcdir)/src/xvmc -DTRUE=1 -DFALSE=0
-libviaXvMC_la_LDFLAGS = -version-number 1:0:0
+libviaXvMC_la_LDFLAGS = @DRI_LIBS@ -version-number 1:0:0
