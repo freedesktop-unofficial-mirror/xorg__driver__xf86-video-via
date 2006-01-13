@@ -1,3 +1,72 @@
+2006-01-13  Thomas Hellstrom  <unichrome-at-shipmail-dot-org>
+
+	* configure.ac:
+	* src/xvmc/Makefile.am:
+	* src/xvmc/driDrawable.c: (drawStamp), (getDRIDrawableInfoLocked),
+	(driDestroyHashContents):
+	* src/xvmc/driDrawable.h:
+	* src/xvmc/unichrome/.cvsignore:
+	* src/xvmc/unichrome/Makefile.am:
+	* src/xvmc/unichrome/viaLowLevel.c:
+	* src/xvmc/unichromeProA/.cvsignore:
+	* src/xvmc/unichromeProA/Makefile.am:
+	* src/xvmc/unichromeProA/viaLowLevelPro.c:
+	* src/xvmc/viaLowLevel.c: (hwlLock), (hwlUnlock), (timeDiff),
+	(setAGPSyncLowLevel), (viaDMATimeStampLowLevel),
+	(viaDMAWaitTimeStamp), (viaDMAInitTimeStamp),
+	(viaDMACleanupTimeStamp), (viaMpegGetStatus), (viaMpegIsBusy),
+	(syncDMA), (syncVideo), (syncAccel), (syncMpeg), (pciFlush),
+	(agpFlush), (flushXvMCLowLevel), (flushPCIXvMCLowLevel),
+	(pciCommand), (viaMpegSetSurfaceStride), (viaVideoSetSWFLipLocked),
+	(viaVideoSWFlipLocked), (viaMpegSetFB), (viaMpegBeginPicture),
+	(viaMpegReset), (viaMpegWriteSlice), (viaVideoSubPictureOffLocked),
+	(viaVideoSubPictureLocked), (viaBlit), (syncXvMCLowLevel),
+	(initXvMCLowLevel), (setLowLevelLocking), (closeXvMCLowLevel):
+	* src/xvmc/viaLowLevel.h:
+	* src/xvmc/viaLowLevelPro.c: (initHQVShadow),
+	(setHQVHWDeinterlacing), (setHQVDeblocking), (setHQVStartAddress),
+	(setHQVColorSpaceConversion), (setHQVFetchLine), (setHQVScale),
+	(setHQVSingleDestination), (setHQVDeinterlacing),
+	(setHQVTripleBuffer), (finish_header_agp), (hwlLock), (hwlUnlock),
+	(timeDiff), (setAGPSyncLowLevel), (viaDMATimeStampLowLevel),
+	(viaDMAWaitTimeStamp), (viaDMAInitTimeStamp),
+	(viaDMACleanupTimeStamp), (viaMpegGetStatus), (viaMpegIsBusy),
+	(syncDMA), (syncVideo), (syncAccel), (syncMpeg), (pciFlush),
+	(agpFlush), (uploadHQVDeinterlace), (uploadHQVShadow),
+	(flushXvMCLowLevel), (flushPCIXvMCLowLevel),
+	(viaMpegSetSurfaceStride), (viaVideoSetSWFLipLocked),
+	(viaVideoSWFlipLocked), (viaMpegSetFB), (viaMpegBeginPicture),
+	(viaMpegReset), (viaMpegWriteSlice), (viaVideoSubPictureOffLocked),
+	(viaVideoSubPictureLocked), (viaBlit), (syncXvMCLowLevel),
+	(updateLowLevelBuf), (cleanupLowLevelBuf), (releaseXvMCLowLevel),
+	(initXvMCLowLevel), (setLowLevelLocking), (closeXvMCLowLevel),
+	(computeDownScaling), (computeHQVScaleAndFilter),
+	(setupBackBuffer):
+	* src/xvmc/viaXvMC.c: (yOffs), (vOffs), (uOffs),
+	(defaultQMatrices), (releaseDecoder), (grabDecoder),
+	(setupAttribDesc), (releaseAttribDesc), (releaseContextResources),
+	(XvMCCreateContext), (XvMCDestroyContext), (XvMCCreateSurface),
+	(XvMCDestroySurface), (XvMCPutSlice2), (XvMCPutSlice),
+	(updateXVOverlay), (XvMCPutSurface), (XvMCBeginSurface),
+	(XvMCSyncSurface), (XvMCLoadQMatrix), (XvMCRenderSurface),
+	(XvMCCreateBlocks), (XvMCDestroyBlocks), (XvMCCreateMacroBlocks),
+	(XvMCDestroyMacroBlocks), (XvMCCreateSubpicture),
+	(XvMCSetSubpicturePalette), (findOverlap), (XvMCClearSubpicture),
+	(XvMCCompositeSubpicture), (XvMCBlendSubpicture),
+	(XvMCBlendSubpicture2), (XvMCSyncSubpicture),
+	(XvMCFlushSubpicture), (XvMCDestroySubpicture),
+	(XvMCGetSubpictureStatus), (XvMCFlushSurface),
+	(XvMCGetSurfaceStatus), (XvMCQueryAttributes), (XvMCSetAttribute),
+	(XvMCGetAttribute), (XvMCHideSurface):
+	* src/xvmc/viaXvMCPriv.h:
+	* src/xvmc/xf86dri.c: (uniDRIDestroyContext),
+	(uniDRICreateDrawable), (uniDRIDestroyDrawable),
+	(uniDRIGetDrawableInfo):
+	* src/xvmc/xf86dri.h:
+	* src/xvmc/xf86dristr.h:
+	Sync XvMC libs with Openchrome revision 140. (Minor changes)
+	Run indent on xvmc libs and restructure the directory layout.
+	
 2005-12-20  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:

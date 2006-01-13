@@ -111,6 +111,8 @@ AC_SUBST([moduledir])
 DRIVER_NAME=via
 AC_SUBST([DRIVER_NAME])
 
+AC_DEFINE(VIA_HAVE_EXA, 1, [Build support for Exa])
+
 XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
 
@@ -118,7 +120,5 @@ AC_OUTPUT([
 	Makefile
 	src/Makefile
 	src/xvmc/Makefile
-	src/xvmc/unichrome/Makefile
-	src/xvmc/unichromeProA/Makefile
 	man/Makefile
 ])
