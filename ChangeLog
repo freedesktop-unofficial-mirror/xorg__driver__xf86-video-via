@@ -1,5 +1,60 @@
 2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/Makefile.am:
+	* src/via_3d.c: (via3DDstFormat), (via3DTexFormat),
+	(via3DDstSupported), (via3DTexSupported), (viaSet3DDestination),
+	(viaSet3DDrawing), (viaSet3DFlags), (viaOrder), (viaSet3DTexture),
+	(viaSet3DTexBlendCol), (viaSet3DCompositeOperator),
+	(via3DOpSupported), (via3DEmitQuad), (via3DEmitState),
+	(via3DEmitClipRect), (viaInit3DState):
+	* src/via_3d.h:
+	* src/via_accel.c: (viaDumpDMA), (viaFlushPCI),
+	(viaFlushDRIEnabled), (viaSetupCBuffer), (viaTearDownCBuffer),
+	(viaInitAgp), (viaEnableVQ), (viaDisableVQ), (viaAccelSetMode),
+	(viaInitialize2DEngine), (viaAccelSync), (viaSetClippingRectangle),
+	(viaDisableClipping), (viaAccelClippingHelper),
+	(viaAccelSolidHelper), (viaAccelPlaneMaskHelper),
+	(viaAccelTransparentHelper), (viaAccelCopyHelper),
+	(viaSetupForScreenToScreenCopy), (viaSubsequentScreenToScreenCopy),
+	(viaSetupForSolidFill), (viaSubsequentSolidFillRect),
+	(viaSetupForMono8x8PatternFill),
+	(viaSubsequentMono8x8PatternFillRect),
+	(viaSetupForColor8x8PatternFill),
+	(viaSubsequentColor8x8PatternFillRect),
+	(viaSetupForCPUToScreenColorExpandFill),
+	(viaSubsequentScanlineCPUToScreenColorExpandFill),
+	(viaSetupForImageWrite), (viaSubsequentImageWriteRect),
+	(viaSetupForSolidLine), (viaSubsequentSolidTwoPointLine),
+	(viaSubsequentSolidHorVertLine), (viaSetupForDashedLine),
+	(viaSubsequentDashedTwoPointLine), (viaInitXAA),
+	(viaAccelMarkSync), (viaAccelWaitMarker), (viaExaPrepareSolid),
+	(viaExaSolid), (viaExaDoneSolidCopy), (viaExaPrepareCopy),
+	(viaExaCopy), (viaExaCompositePictDesc), (viaExaPrintComposite),
+	(viaBitExpandHelper), (viaPixelARGB8888), (viaExpandablePixel),
+	(viaCheckUpload), (viaOrder), (viaExaDownloadFromScreen),
+	(viaExaTexUploadToScreen), (viaExaUploadToScreen),
+	(viaExaUploadToScratch), (viaExaCheckComposite), (viaIsAGP),
+	(viaIsOffscreen), (viaExaPrepareComposite), (viaExaComposite),
+	(viaInitExa), (viaInitAccel), (viaExitAccel), (viaFinishInitAccel),
+	(viaAccelBlitRect), (viaAccelFillRect), (viaAccelSyncMarker):
+	* src/via_cursor.c: (VIALoadCursorImage):
+	* src/via_dga.c:
+	* src/via_dri.c: (VIADRIRingBufferInit), (VIADRIFBInit),
+	(VIADRIScreenInit), (VIADRICloseScreen):
+	* src/via_driver.c: (VIASetup), (VIAPreInit), (VIALeaveVT),
+	(VIAScreenInit), (VIAInternalScreenInit), (VIAWriteMode),
+	(VIACloseScreen), (VIASwitchMode):
+	* src/via_driver.h:
+	* src/via_memcpy.c: (viaVidCopyInit):
+	* src/via_memory.c: (VIAFreeLinear), (offScreenLinear),
+	(VIAAllocLinear), (VIAInitLinear):
+	* src/via_priv.h:
+	* src/via_vbe.c: (ViaVbeSetMode):
+	Bugzilla #5180 <https://bugs.freedesktop.org/show_bug.cgi?id=5180>
+	XAA rework and EXA support including render / composite accel.
+
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* src/via_mode.c: (ViaModePrimary):
 	Import Luc's fix for sometimes-blanking CRTs. (Luc Verhaegen)
 
