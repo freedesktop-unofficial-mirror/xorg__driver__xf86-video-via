@@ -1,5 +1,11 @@
 2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_vt162x.c: (VT1622ModeCrtc):
+	Don't depend on BIOS to enable the TV-out controller of
+	Unichrome Pros (openChrome Chgset 107)
+	
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* src/via_dri.c: (VIADRIKernelInit), (VIADRIMapInit):
 	* src/via_driver.h:
 	Add a proper framebuffer map for DRI. (openChrome Chgset 144)
