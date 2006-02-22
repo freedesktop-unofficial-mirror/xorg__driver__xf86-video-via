@@ -1,5 +1,11 @@
 2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_dri.c: (VIADRIKernelInit), (VIADRIMapInit):
+	* src/via_driver.h:
+	Add a proper framebuffer map for DRI. (openChrome Chgset 144)
+	
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* configure.ac:
 	* src/via_drmclient.h:
 	* src/xvmc/viaXvMC.c:
