@@ -1,5 +1,10 @@
 2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_mode.c: (ViaModePrimary):
+	Import Luc's fix for sometimes-blanking CRTs. (Luc Verhaegen)
+
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* src/via_driver.c: (VIAScreenInit):
 	* src/via_mode.c: (ViaModePrimary):
 	* src/via_vbe.c: (ViaVbeSetMode):
