@@ -67,6 +67,7 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 # Checks for header files.
 AC_HEADER_STDC
 
+
 if test "$DRI" != no; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
                       [have_dri_h="yes"], [have_dri_h="no"])
@@ -74,6 +75,7 @@ if test "$DRI" != no; then
                       [have_sarea_h="yes"], [have_sarea_h="no"])
         AC_CHECK_FILE([${sdkdir}/dristruct.h],
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
+        AC_CHECK_HEADER
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
@@ -102,6 +104,11 @@ if test "$DRI" = yes; then
                 XVMC=no ;;
         esac
 fi
+
+if test "x$XVMC" = xyes; then
+	AC_CHECK_HEADERS(pthread.h sys/ioctl.h sys/time.h time.h,,[XVMC="no"; break],)
+fi
+
 AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
 
 AC_SUBST([DRI_CFLAGS])

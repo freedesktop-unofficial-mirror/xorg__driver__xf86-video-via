@@ -1,3 +1,11 @@
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
+	* configure.ac:
+	* src/via_drmclient.h:
+	* src/xvmc/viaXvMC.c:
+	* src/xvmc/viaXvMCPriv.h:
+	Build fixes for DragonFly. (Reported by Jeremy C. Reed)
+	
 2006-01-13  Thomas Hellstrom  <unichrome-at-shipmail-dot-org>
 
 	* configure.ac:

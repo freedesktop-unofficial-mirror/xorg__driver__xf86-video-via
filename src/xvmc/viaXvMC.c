@@ -39,7 +39,6 @@
 #include <fourcc.h>
 #include <X11/extensions/Xv.h>
 #include <xf86drm.h>
-#include <pthread.h>
 #include "xf86dri.h"
 #include "driDrawable.h"
 

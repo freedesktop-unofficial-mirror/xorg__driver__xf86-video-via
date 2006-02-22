@@ -25,6 +25,7 @@
 #ifndef _VIAXVMCPRIV_H
 #define _VIAXVMCPRIV_H 1
 
+#include <pthread.h>
 #include <X11/Xlibint.h>
 #include <X11/extensions/XvMC.h>
 #include <X11/extensions/XvMClib.h>
