@@ -1,5 +1,13 @@
 2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_driver.c: (VIAScreenInit):
+	* src/via_mode.c: (ViaModePrimary):
+	* src/via_vbe.c: (ViaVbeSetMode):
+	Move VRAM clear to VIAScreenInit. Fixes sometimes-hang in ViaVbeSetMode.
+	The clear will be accelerated when EXA is pulled in.
+	
+2006-02-22  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* src/via_vt162x.c: (VT1622ModeCrtc):
 	Don't depend on BIOS to enable the TV-out controller of
 	Unichrome Pros (openChrome Chgset 107)

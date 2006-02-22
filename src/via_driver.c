@@ -2017,6 +2017,9 @@ VIAScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO, "- Palette loaded\n"));
 
+    if (!pVia->IsSecondary)
+	memset(pVia->FBBase, 0x00, pVia->videoRambytes);
+
     vgaHWBlankScreen(pScrn, TRUE);
 
     pVia->CloseScreen = pScreen->CloseScreen;
