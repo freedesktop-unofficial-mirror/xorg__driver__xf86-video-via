@@ -1,3 +1,10 @@
+2006-02-27  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
+	* configure.ac:
+	* src/Makefile.am:
+	* src/xvmc/Makefile.am:
+	Build fixes. (Reported by Kurt B Cox)
+	
 2006-02-25  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* src/via_dmabuffer.h:

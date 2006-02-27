@@ -35,6 +35,7 @@ via_drv_la_SOURCES = \
          via_accel.c \
          via_bandwidth.c \
          via_bios.h \
+	 via_dmabuffer.h \
          via_cursor.c \
          via_dga.c \
          via_driver.c \
@@ -60,13 +61,21 @@ via_drv_la_SOURCES = \
          via_video.h \
          via_vt162x.c \
          via_vt162x.h \
-         via_xvmc.c \
-         via_xvmc.h \
          via_xvpriv.h
 
 if DRI
 via_drv_la_SOURCES += \
          via_dri.c \
          via_dri.h \
-         via_drmclient.h
+         via_drmclient.h \
+         via_xvmc.c \
+         via_xvmc.h 
+
+else
+EXTRA_DIST = \
+         via_dri.c \
+         via_dri.h \
+         via_drmclient.h \
+         via_xvmc.c \
+         via_xvmc.h 
 endif

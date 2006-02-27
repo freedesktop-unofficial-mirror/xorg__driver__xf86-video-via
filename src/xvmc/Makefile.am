@@ -25,8 +25,9 @@ libviaXvMCPro_la_SOURCES = \
 
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 libviaXvMC_la_LDFLAGS = @DRI_LIBS@ -version-number 1:0:0
+libviaXvMCPro_la_LDFLAGS = @DRI_LIBS@ -version-number 1:0:0
 else
-libviaXvMCPro_la_SOURCES = \
+EXTRA_DIST = \
 	driDrawable.c \
 	driDrawable.h \
 	viaLowLevelPro.c \
