@@ -1,3 +1,37 @@
+2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
+	* man/via.man:
+	* src/via.h:
+	* src/via_accel.c: (viaExaDownloadFromScreen),
+	(viaExaUploadToScreen):
+	* src/via_driver.c: (VIAPreInit):
+	* src/via_driver.h:
+	* src/via_id.h:
+	* src/via_priv.h:
+	* src/via_swov.c: (viaWaitVideoCommandFire), (VIAVidHWDiffInit),
+	(viaOverlayGetV1V3Format), (viaOverlayGetSrcStartAddress),
+	(viaOverlayGetFetch), (viaCalculateVideoColor), (viaSetColorSpace),
+	(ViaInitVideoStatusFlag), (ViaSetVidCtl), (CreateSurface),
+	(ViaSwovSurfaceCreate), (ViaSwovSurfaceDestroy), (SetFIFO_V3),
+	(SetFIFO_V3_64or32or32), (SetFIFO_V3_64or32or16), (SetColorKey),
+	(SetChromaKey), (SetHQVFetch), (Upd_Video), (VIAVidUpdateOverlay),
+	(ViaOverlayHide):
+	* src/via_video.c: (DecideOverlaySupport), (viaXvError),
+	(viaInitVideo), (viaReputImage), (viaSetupAdaptors),
+	(viaStopVideo), (Flip), (nv12cp), (viaDmaBlitImage), (viaPutImage),
+	(viaQueryImageAttributes), (nv12Blit):
+	* src/via_video.h:
+	* src/via_xvmc.c: (ViaInitXVMC), (ViaXvMCCreateContext):
+	* src/via_xvpriv.h:
+	Sync Xv and man with openchrome revision 166.
+	
+	Xv RV32 support (Ivor Hewitt).
+	Xv VM800 support (Ivor Hewitt). Not enabled yet pending more testing.
+	A number of Xv Unichrome Pro Group A bugfixes.
+	Xv PCI DMAblit support. 
+	Fix DMAblit DRM version check.
+	Update manpage.
+	
 2006-02-27  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* configure.ac:

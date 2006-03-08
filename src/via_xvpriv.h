@@ -27,9 +27,18 @@
 
 #include "xf86xv.h"
 
-
 enum{ XV_ADAPT_SWOV=0, 
       XV_ADAPT_NUM};
+
+typedef enum{ 
+  xve_none = 0,
+  xve_bandwidth,
+  xve_dmablit,
+  xve_mem,
+  xve_general,
+  xve_adaptor,
+  xve_numerr
+} XvError;
 
 #define VIA_MAX_XV_PORTS 1
 
@@ -59,6 +68,15 @@ typedef struct {
     short old_drw_h;
 
     void *xvmc_priv;
+    
+    /*
+     * For PCI DMA image transfer to frame-buffer memory.
+     */
+
+    unsigned char *dmaBounceBuffer;
+    unsigned dmaBounceStride;
+    unsigned dmaBounceLines;
+    XvError xvErr;
 
 } viaPortPrivRec, *viaPortPrivPtr;
 

@@ -315,6 +315,7 @@ typedef struct _VIA {
     Bool		DRIIrqEnable;
     Bool                agpEnable;
     Bool                dma2d;
+    Bool                dmaXV;
 
     CARD8               ActiveDevice;	/* Option */
     unsigned char       *CursorImage;
@@ -336,6 +337,7 @@ typedef struct _VIA {
     unsigned long	old_dwUseExtendedFIFO;
     
     ViaSharedPtr	sharedData;
+    Bool                useDmaBlit;
 
 #ifdef HAVE_DEBUG
     Bool                DumpVGAROM;

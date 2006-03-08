@@ -1559,8 +1559,10 @@ viaExaDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	  ((useBounceBuffer) ? bounceAligned + VIA_DMA_DL_SIZE * buf : dst);
 	curBlit->mem_stride = (useBounceBuffer) ? bouncePitch : dst_pitch;
 	curBlit->to_fb = 0;
-#if (VIA_DRM_VERSION >= ((2 << 16) | 9))
+#if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
 	curBlit->flags = 0;
+#else
+	curBlit->bounce_buffer = 0;
 #endif
 
 	while (-EAGAIN == (err =
@@ -1774,8 +1776,10 @@ viaExaUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, char *src,
     blit.mem_addr = (unsigned char *) src;
     blit.mem_stride = src_pitch;
     blit.to_fb = 1;
-#if (VIA_DRM_VERSION >= ((2 << 16) | 9))
-    blit.flags = 0;
+#if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
+	blit.flags = 0;
+#else
+	blit.bounce_buffer = 0;
 #endif
 
     exaWaitSync(pScrn->pScreen);

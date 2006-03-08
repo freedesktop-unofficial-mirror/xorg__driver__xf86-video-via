@@ -99,6 +99,11 @@ static int viaSetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 static int viaPutImage(ScrnInfoPtr, short, short, short, short, short, short, 
 		       short, short,int, unsigned char*, short, short, Bool, 
 		       RegionPtr, pointer);
+static void nv12Blit(unsigned char *nv12Chroma,
+		     const unsigned char *uBuffer,
+		     const unsigned char *vBuffer,
+		     unsigned width, unsigned srcPitch, 
+		     unsigned dstPitch, unsigned lines);
 
 static Atom xvBrightness, xvContrast, xvColorKey, xvHue, xvSaturation, xvAutoPaint;
 
@@ -138,7 +143,7 @@ static XF86AttributeRec AttributesG[NUM_ATTRIBUTES_G] =
    {XvSettable | XvGettable,0,1,"XV_AUTOPAINT_COLORKEY"}
 };
 
-#define NUM_IMAGES_G 5
+#define NUM_IMAGES_G 6
 
 static XF86ImageRec ImagesG[NUM_IMAGES_G] =
 {
@@ -200,7 +205,25 @@ static XF86ImageRec ImagesG[NUM_IMAGES_G] =
       {'R', 'V', 'B',0,
        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
       XvTopToBottom
+    },
+    { /* RGB 888 */
+      FOURCC_RV32,
+      XvRGB,
+      LSBFirst,
+      {'R','V','3','2',
+       0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+      32,
+      XvPacked,
+      1,
+      24, 0xff0000, 0x00ff00, 0x0000ff,
+      0, 0, 0,
+      0, 0, 0,
+      0, 0, 0,
+      {'R', 'V', 'B',0,
+       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+      XvTopToBottom
     }
+
 };
 
 static char * XvAdaptorName[XV_ADAPT_NUM] =
@@ -221,6 +244,7 @@ static unsigned numAdaptPort[XV_ADAPT_NUM] =
  *   Decide if the mode support video overlay. This depends on the bandwidth
  *   of the mode and the type of RAM available.
  */
+
 static Bool DecideOverlaySupport(ScrnInfoPtr pScrn)
 {
     VIAPtr  pVia = VIAPTR(pScrn);
@@ -231,7 +255,8 @@ static Bool DecideOverlaySupport(ScrnInfoPtr pScrn)
 
     if ( pVia->ChipId != PCI_CHIP_VT3205 && 
 	 pVia->ChipId != PCI_CHIP_VT3204 &&
-	 pVia->ChipId != PCI_CHIP_VT3259) {
+	 pVia->ChipId != PCI_CHIP_VT3259 &&
+    pVia->ChipId != PCI_CHIP_VT3314) {
 	CARD32 bandwidth = (mode->HDisplay >> 4) * (mode->VDisplay >> 5) *
 	    pScrn->bitsPerPixel * mode->VRefresh;
 	
@@ -374,6 +399,29 @@ static Bool DecideOverlaySupport(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
+static const char *viaXvErrMsg[xve_numerr] = 
+  {"No Error.",
+   "Bandwidth is insufficient. Check bios memory settings.",
+   "PCI DMA blit failed. You probably encountered a bug.",
+   "Not enough resources to complete the request. Probably out of memory.",
+   "General Error. I wish I could be more specific.",
+   "Wrong adaptor used. Try another port number."};
+
+static void
+viaXvError(ScrnInfoPtr pScrn, viaPortPrivPtr pPriv, XvError error)
+{
+    if (error == xve_none) {
+	pPriv->xvErr = xve_none;
+	return;
+    }
+    if (error == pPriv->xvErr) {
+	return;
+    } 
+    pPriv->xvErr = error;
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[Xv] Port %d: %s\n", pPriv->xv_portnum,
+	viaXvErrMsg[error]);
+}
+
 static void
 viaResetVideo(ScrnInfoPtr pScrn) 
 {
@@ -473,12 +521,31 @@ void viaInitVideo(ScreenPtr pScreen)
     allAdaptors = NULL;
     newAdaptors = NULL;
     num_new = 0;
+    
+    pVia->useDmaBlit = FALSE;
+#ifdef XF86DRI
+    pVia->useDmaBlit = pVia->directRenderingEnabled &&
+	((pVia->Chipset == VIA_CLE266) || 
+	 (pVia->Chipset == VIA_KM400) ||
+	 (pVia->Chipset == VIA_K8M800) ||
+	 (pVia->Chipset == VIA_PM800) ||
+	 (pVia->Chipset == VIA_VM800));
+    if ((pVia->drmVerMajor < 2) || 
+	((pVia->drmVerMajor == 2) && 
+	 (pVia->drmVerMinor < 9)))
+	pVia->useDmaBlit = FALSE;
+#endif
+    pVia->useDmaBlit = pVia->useDmaBlit && pVia->dmaXV;
+
+    if (pVia->useDmaBlit)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[Xv] Using PCI DMA for Xv image transfer.\n");
 
     if (!viaFastVidCpy)
 	viaFastVidCpy = viaVidCopyInit("video", pScreen);
 
     if ( (pVia->Chipset == VIA_CLE266) || (pVia->Chipset == VIA_KM400) ||
-	 (pVia->Chipset == VIA_K8M800) || (pVia->Chipset == VIA_PM800)) {
+	 (pVia->Chipset == VIA_K8M800) || (pVia->Chipset == VIA_PM800) /* ||
+	 (pVia->Chipset == VIA_VM800) */) {
 	num_new = viaSetupAdaptors(pScreen, &newAdaptors);
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
     } else {
@@ -569,9 +636,10 @@ viaReputImage(ScrnInfoPtr pScrn,
     if (drw_x == pPriv->old_drw_x &&
 	drw_y == pPriv->old_drw_y &&
 	pVia->swov.oldPanningX == pVia->swov.panning_x &&
-	pVia->swov.oldPanningY == pVia->swov.panning_y)
-      
+	pVia->swov.oldPanningY == pVia->swov.panning_y) {
+	viaXvError(pScrn, pPriv, xve_none);
 	return Success;
+    }
 	
     lpUpdateOverlay->SrcLeft = pPriv->old_src_x;
     lpUpdateOverlay->SrcTop = pPriv->old_src_y;
@@ -592,14 +660,9 @@ viaReputImage(ScrnInfoPtr pScrn,
     else
 	lpUpdateOverlay->dwColorSpaceLowValue = pPriv->colorKey;
     
-    if(!RegionsEqual(&pPriv->clip, clipBoxes)) {
-	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);    
-	if (pPriv->autoPaint) 
-	    xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes); 
-    } 
-
     VIAVidUpdateOverlay(pScrn, lpUpdateOverlay);
 
+    viaXvError(pScrn, pPriv, xve_none);
     return Success;
 }
 
@@ -670,6 +733,9 @@ viaSetupAdaptors(ScreenPtr pScreen, XF86VideoAdaptorPtr **adaptors)
         viaAdaptPtr[i]->ReputImage = viaReputImage;
         viaAdaptPtr[i]->QueryImageAttributes = viaQueryImageAttributes;
  	for (j=0; j<numPorts; ++j) {
+	    viaPortPriv[j].dmaBounceBuffer = NULL;
+	    viaPortPriv[j].dmaBounceStride = 0;
+	    viaPortPriv[j].dmaBounceLines = 0;
  	    viaPortPriv[j].colorKey = 0x0821;
  	    viaPortPriv[j].autoPaint = TRUE;
  	    viaPortPriv[j].brightness = 5000.;
@@ -678,7 +744,8 @@ viaSetupAdaptors(ScreenPtr pScreen, XF86VideoAdaptorPtr **adaptors)
  	    viaPortPriv[j].hue = 0;
 	    viaPortPriv[j].FourCC = 0;
  	    viaPortPriv[j].xv_portnum = j + usedPorts;
- 	    REGION_NULL(pScreen, &viaPortPriv[j].clip);
+	    viaPortPriv[j].xvErr = xve_none;
+	    REGION_NULL(pScreen, &viaPortPriv[j].clip);
  	}
  	usedPorts += j;
 
@@ -706,6 +773,10 @@ viaStopVideo(ScrnInfoPtr pScrn, pointer data, Bool exit)
     if (exit) {
 	ViaOverlayHide(pScrn);
 	ViaSwovSurfaceDestroy(pScrn, pPriv);
+	if (pPriv->dmaBounceBuffer) xfree(pPriv->dmaBounceBuffer);
+	pPriv->dmaBounceBuffer = 0;
+	pPriv->dmaBounceStride = 0;
+	pPriv->dmaBounceLines = 0;
 	pVia->dwFrameNum = 0;    
 	pPriv->old_drw_x= 0;
 	pPriv->old_drw_y= 0;
@@ -867,10 +938,12 @@ static void Flip(VIAPtr pVia, viaPortPrivPtr pPriv, int fourcc, unsigned long Di
         case FOURCC_YUY2:
         case FOURCC_RV15:
         case FOURCC_RV16:
-            while ((VIDInD(HQV_CONTROL) & HQV_SW_FLIP) );
+        case FOURCC_RV32:
+            while ((VIDInD(HQV_CONTROL + proReg) & HQV_SW_FLIP) );
             VIDOutD(HQV_SRC_STARTADDR_Y + proReg, 
 		    pVia->swov.SWDevice.dwSWPhysicalAddr[DisplayBufferIndex]);
-            VIDOutD(HQV_CONTROL,( VIDInD(HQV_CONTROL)&~HQV_FLIP_ODD) |HQV_SW_FLIP|HQV_FLIP_STATUS);
+            VIDOutD(HQV_CONTROL + proReg,( VIDInD(HQV_CONTROL + proReg)&~HQV_FLIP_ODD) |
+		    HQV_SW_FLIP|HQV_FLIP_STATUS);
             break;
 
         case FOURCC_YV12:
@@ -904,55 +977,163 @@ nv12cp(unsigned char *dst,
        int w,
        int h, int yuv422)
 {
-    int count;
-    int x, dstAdd;
-    const unsigned char* src2;
-
-    /* Blit luma component as a fake YUY2 assembler blit. */
+    /* 
+     * Blit luma component as a fake YUY2 assembler blit. 
+     */ 
+     
 
     (*viaFastVidCpy)(dst, src, dstPitch, w >> 1, h, TRUE);
-
-    src += w*h;
-    dst += dstPitch*h;
-    dstAdd = dstPitch - w;
-
-    /* UV component is 1/2 of Y */
-    w >>= 1;
-
-   /* copy V(Cr),U(Cb) components to video memory */
-    count = h/2;
-
-    src2 = src + w*count;
-    while(count--) {
-	x=w;
-	while(x > 3) {
-	    register CARD32 
-		dst32,
-		src32 = *((CARD32 *) src),
-		src32_2 = *((CARD32 *) src2);
-	    dst32 = 
-		(src32_2 & 0xff) | ((src32 & 0xff) << 8) |
-		((src32_2 & 0x0000ff00) << 8) | ((src32 & 0x0000ff00) << 16);
-	    *((CARD32 *) dst) = dst32;
-	    dst +=4;
-	    dst32 = 
-		((src32_2 & 0x00ff0000) >> 16) | ((src32 & 0x00ff0000) >> 8) |
-		((src32_2 & 0xff000000) >> 8) | (src32 & 0xff000000);
-	    *((CARD32 *) dst) = dst32;
-	    dst +=4;
-	    x -= 4;
-	    src += 4;
-	    src2 += 4;
-	}
-        while(x--) {
-	    *dst++ = *src2++;
-	    *dst++ = *src++;
-        }   
-	dst += dstAdd;
-    }
+    nv12Blit( dst + dstPitch*h, src + w*h + (w >> 1)*(h >> 1), src + w*h,
+	      w >> 1, w >> 1, dstPitch, h >> 1);
 }
 
 
+#ifdef XF86DRI
+
+static int
+viaDmaBlitImage(VIAPtr pVia,
+		viaPortPrivPtr pPort, 
+		unsigned char *src,
+		CARD32 dst,
+		unsigned width,
+		unsigned height,
+		unsigned lumaStride,
+		int id)
+{
+    Bool bounceBuffer;
+    drm_via_dmablit_t blit;
+    drm_via_blitsync_t *chromaSync = &blit.sync;
+    drm_via_blitsync_t lumaSync;
+    unsigned char *base;
+    unsigned char *bounceBase;
+    unsigned bounceStride;
+    unsigned bounceLines;
+    unsigned size;
+    int err=0;
+    Bool nv12Conversion;
+
+    bounceBuffer = ((unsigned long)src & 15);
+    nv12Conversion = ((pVia->ChipId == PCI_CHIP_VT3259)  && (id == FOURCC_YV12));
+    
+    switch(id) {
+    case FOURCC_YUY2:
+    case FOURCC_RV15:
+    case FOURCC_RV16:
+	bounceStride = ALIGN_TO(2*width, 16);
+	bounceLines = height;
+	break;
+    case FOURCC_RV32:
+	bounceStride = ALIGN_TO(4*width, 16);
+	bounceLines = height;
+	break;
+        
+    case FOURCC_YV12:
+    default:
+        bounceStride = ALIGN_TO(width,16);
+	bounceLines = height;
+	break;
+    }
+    
+    if (bounceBuffer || nv12Conversion) {      
+	if (!pPort->dmaBounceBuffer || 
+	    pPort->dmaBounceStride != bounceStride ||
+	    pPort->dmaBounceLines != bounceLines) {
+	    if (pPort->dmaBounceBuffer) {
+		xfree(pPort->dmaBounceBuffer);
+		pPort->dmaBounceBuffer = 0;
+	    }
+	    size = bounceStride * bounceLines + 16;
+	    if (FOURCC_YV12 == id) size += ALIGN_TO(bounceStride >> 1, 16) * bounceLines;  
+	    pPort->dmaBounceBuffer = (unsigned char *)malloc(size);
+	    pPort->dmaBounceLines = bounceLines;
+	    pPort->dmaBounceStride = bounceStride;
+	}
+    }
+
+    bounceBase = (unsigned char *)ALIGN_TO((unsigned long)(pPort->dmaBounceBuffer), 16);
+    base = (bounceBuffer) ? bounceBase : src;
+    
+    if(bounceBuffer) {
+	(*viaFastVidCpy)(base, src, bounceStride, bounceStride >> 1, height, 1);
+    }
+
+    blit.num_lines = height;
+    blit.line_length = bounceStride;
+    blit.fb_addr = dst;
+    blit.fb_stride = lumaStride;
+    blit.mem_addr = base;
+    blit.mem_stride = bounceStride;
+    blit.to_fb = 1;
+#if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
+    blit.flags = 0;
+#else
+    blit.bounce_buffer = 0;
+#endif 
+
+#ifdef XV_DEBUG
+    ErrorF("Addr: 0x%lx, Offset 0x%lx\n Fb_stride: %u, Mem_stride: %u\n width: %u num_lines: %u\n",
+	   (unsigned long)blit.mem_addr, (unsigned long)blit.fb_addr,
+	   (unsigned)blit.fb_stride,(unsigned)blit.mem_stride,
+	   (unsigned)blit.line_length,(unsigned)blit.num_lines);
+#endif
+    while(-EAGAIN == (err = drmCommandWriteRead(pVia->drmFD, DRM_VIA_DMA_BLIT, 
+						&blit, sizeof(blit))));
+    if (err < 0) 
+	return -1;
+
+    lumaSync = blit.sync;
+
+    if (id == FOURCC_YV12) {
+        unsigned tmp = ALIGN_TO(width >> 1, 16);
+
+	if (nv12Conversion) {
+	    nv12Blit(bounceBase + bounceStride*height, 
+		     src + bounceStride*height + tmp*(height >> 1),
+		     src + bounceStride*height, width >> 1, tmp, 
+		     bounceStride, height >> 1);
+	} else if (bounceBuffer) {
+	    (*viaFastVidCpy)(base + bounceStride*height,src + bounceStride*height,
+			     tmp, tmp >> 1,height, 1); 
+	}
+
+	if (nv12Conversion) {
+	    blit.num_lines = height >> 1;
+	    blit.line_length = bounceStride;
+	    blit.mem_addr = bounceBase + bounceStride*height;
+	    blit.fb_stride = lumaStride;
+	    blit.mem_stride = bounceStride;
+	} else {
+	    blit.num_lines = height;
+	    blit.line_length = tmp;
+	    blit.mem_addr = base + bounceStride*height;
+	    blit.fb_stride = lumaStride >> 1;
+	    blit.mem_stride = tmp;
+	}
+
+	blit.fb_addr = dst + lumaStride*height;
+	blit.to_fb = 1;
+#if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
+	blit.flags = 0;
+#else
+	blit.bounce_buffer = 0;
+#endif 
+
+	while(-EAGAIN == (err = drmCommandWriteRead(pVia->drmFD, DRM_VIA_DMA_BLIT, 
+						    &blit, sizeof(blit))));
+	if (err < 0) 
+	    return -1;
+
+    }	
+
+    while(-EAGAIN == (err = drmCommandWrite(pVia->drmFD, DRM_VIA_BLIT_SYNC, 
+					    chromaSync, sizeof(*chromaSync))));
+    if (err < 0) 
+	return -1;
+
+    return Success;    
+}
+    
+#endif    
 
 static int
 viaPutImage( 
@@ -977,7 +1158,7 @@ viaPutImage(
     ErrorF(" via_video.c : drw_x=%d drw_y=%d drw_w=%d drw_h=%d\n",drw_x,drw_y,drw_w,drw_h);
 # endif
 
-    switch ( pPriv->xv_portnum )
+    switch ( pPriv->xv_adaptor )
 	{
         case XV_ADAPT_SWOV:
 	{
@@ -991,12 +1172,14 @@ viaPutImage(
 	    /*  Allocate video memory(CreateSurface),
 	     *  add codes to judge if need to re-create surface
 	     */
-	    if ( (pPriv->old_src_w != src_w) || (pPriv->old_src_h != src_h) )
+	    if ( (pPriv->old_src_w != src_w) || (pPriv->old_src_h != src_h) ) {
 		ViaSwovSurfaceDestroy(pScrn, pPriv);
-
+	    }
+		
 	    if (Success != ( retCode = ViaSwovSurfaceCreate(pScrn, pPriv, id, width, height) ))
                 {
 		    DBG_DD(ErrorF("             : Fail to Create SW Video Surface\n"));
+		    viaXvError(pScrn, pPriv, xve_mem);
 		    return retCode;
                 }
 
@@ -1007,24 +1190,40 @@ viaPutImage(
 	    if (FOURCC_XVMC != id) {
 		dstPitch = pVia->swov.SWDevice.dwPitch;
 
-		switch(id) {
-		case FOURCC_YV12:
-		    if (pVia->ChipId == PCI_CHIP_VT3259) {
-			nv12cp(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
-			       buf,dstPitch,width,height,0);
-		    } else {
-			(*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
-					 buf,dstPitch,width,height,0);
+		if (pVia->useDmaBlit) {
+#ifdef XF86DRI
+		    if (viaDmaBlitImage(pVia, pPriv, buf,  
+				    (unsigned char *)pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1] -
+				    (unsigned char *)pVia->FBBase,
+					width, height, dstPitch, id)) {
+			viaXvError(pScrn, pPriv, xve_dmablit);
+			return BadAccess;
 		    }
-		    break;
-		case FOURCC_UYVY:
-		case FOURCC_YUY2:
-		case FOURCC_RV15:
-		case FOURCC_RV16:
-		default:
-		    (*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
-				     buf,dstPitch,width,height,1);
-		    break;
+#endif
+		} else {
+		    switch(id) {
+		    case FOURCC_YV12:
+			if (pVia->ChipId == PCI_CHIP_VT3259) {
+			    nv12cp(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+				   buf,dstPitch,width,height,0);
+			} else {
+			    (*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+					     buf,dstPitch,width,height,0);
+			}
+			break;
+		    case FOURCC_RV32:
+			(*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+					 buf,dstPitch,width<<1,height,1);
+			break;
+		    case FOURCC_UYVY:
+		    case FOURCC_YUY2:
+		    case FOURCC_RV15:
+		    case FOURCC_RV16:
+		    default:
+			(*viaFastVidCpy)(pVia->swov.SWDevice.lpSWOverlaySurface[pVia->dwFrameNum&1],
+					 buf,dstPitch,width,height,1);
+			break;
+		    }
 		}
 	    } 
 
@@ -1034,6 +1233,7 @@ viaPutImage(
 		!(pVia->OverlaySupported = DecideOverlaySupport(pScrn))) {
 		DBG_DD(ErrorF(" via_video.c : Xv Overlay rejected due to insufficient "
 			      "memory bandwidth.\n"));
+		viaXvError(pScrn, pPriv, xve_bandwidth);
 		return BadAlloc;
 	    }
 
@@ -1085,6 +1285,7 @@ viaPutImage(
 		 && (pVia->VideoStatus & VIDEO_SWOV_ON) &&
 		 RegionsEqual(&pPriv->clip, clipBoxes))
                 {
+		    viaXvError(pScrn, pPriv, xve_none);
                     return Success;
                 }
 
@@ -1105,8 +1306,8 @@ viaPutImage(
 		REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);    
 		if (pPriv->autoPaint) 
 		    xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes); 
-	    }		
-
+	    } 
+		
 	    /*
 	     *  Update video overlay
 	     */
@@ -1114,18 +1315,20 @@ viaPutImage(
 		DBG_DD(ErrorF(" via_video.c : call v4l updateoverlay fail. \n"));
 	    } else {
 		DBG_DD(ErrorF(" via_video.c : PutImage done OK\n"));
+		viaXvError(pScrn, pPriv, xve_none);
 		return Success;
 	    }
             break;
 	}
         default:
             DBG_DD(ErrorF(" via_video.c : XVPort not supported\n"));
+	    viaXvError(pScrn, pPriv, xve_adaptor);
             break;
 	}
     DBG_DD(ErrorF(" via_video.c : PutImage done OK\n"));
+    viaXvError(pScrn, pPriv, xve_none);
     return Success;
 }
-
 
 static int 
 viaQueryImageAttributes(
@@ -1135,6 +1338,7 @@ viaQueryImageAttributes(
     int *pitches, int *offsets
 ){
     int size, tmp;
+    VIAPtr  pVia = VIAPTR(pScrn);
 
     DBG_DD(ErrorF(" via_video.c : viaQueryImageAttributes : FourCC=0x%x, ", id));
 
@@ -1152,10 +1356,14 @@ viaQueryImageAttributes(
     case FOURCC_YV12:  /*Planar format : YV12 -4:2:0*/
       *h = (*h + 1) & ~1;
       size = *w;
+      if (pVia->useDmaBlit)
+	  size = (size + 15) & ~15;
       if(pitches) pitches[0] = size;
       size *= *h;
       if(offsets) offsets[1] = size;
       tmp = (*w >> 1);
+      if (pVia->useDmaBlit)
+	  tmp = (tmp + 15) & ~15;
       if(pitches) pitches[1] = pitches[2] = tmp;
       tmp *= (*h >> 1);
       size += tmp;
@@ -1177,12 +1385,22 @@ viaQueryImageAttributes(
       if (pitches) pitches[0] = *w;
       if (offsets) offsets[0] = 0;
       break;
+    case FOURCC_RV32:
+        size = *w << 2;
+	if (pVia->useDmaBlit)
+	    size = (size + 15) & ~15;
+        if(pitches) 
+             pitches[0] = size;
+        size *= *h;
+        break;
     case FOURCC_UYVY:  /*Packed format : UYVY -4:2:2*/
     case FOURCC_YUY2:  /*Packed format : YUY2 -4:2:2*/
     case FOURCC_RV15:
     case FOURCC_RV16:
     default:
         size = *w << 1;
+	if (pVia->useDmaBlit)
+	    size = (size + 15) & ~15;
         if(pitches) 
              pitches[0] = size;
         size *= *h;
@@ -1209,6 +1427,55 @@ VIAVidAdjustFrame(ScrnInfoPtr pScrn, int x, int y)
 
     pVia->swov.panning_x = x;
     pVia->swov.panning_y = y;
+}
+
+/*
+ * Blit the chroma field from one buffer to another while at the same time converting from
+ * YV12 to NV12.
+ */
+
+static void nv12Blit(unsigned char *nv12Chroma,
+		     const unsigned char *uBuffer,
+		     const unsigned char *vBuffer,
+		     unsigned width, unsigned srcPitch, 
+		     unsigned dstPitch, unsigned lines)
+{
+    int x;
+    int dstAdd;
+    int srcAdd;
+
+    dstAdd = dstPitch - (width << 1);
+    srcAdd = srcPitch - width;
+
+    while(lines--) {
+	x=width;
+	while(x > 3) {
+	    register CARD32 
+		dst32,
+		src32 = *((CARD32 *) vBuffer),
+		src32_2 = *((CARD32 *) uBuffer);
+	    dst32 = 
+		(src32_2 & 0xff) | ((src32 & 0xff) << 8) |
+		((src32_2 & 0x0000ff00) << 8) | ((src32 & 0x0000ff00) << 16);
+	    *((CARD32 *) nv12Chroma) = dst32;
+	    nv12Chroma +=4;
+	    dst32 = 
+		((src32_2 & 0x00ff0000) >> 16) | ((src32 & 0x00ff0000) >> 8) |
+		((src32_2 & 0xff000000) >> 8) | (src32 & 0xff000000);
+	    *((CARD32 *) nv12Chroma) = dst32;
+	    nv12Chroma +=4;
+	    x -= 4;
+	    vBuffer += 4;
+	    uBuffer += 4;
+	}
+        while(x--) {
+	    *nv12Chroma++ = *uBuffer++;
+	    *nv12Chroma++ = *vBuffer++;
+        }   
+	nv12Chroma += dstAdd;
+	vBuffer += srcAdd;
+	uBuffer += srcAdd;
+    }
 }
 
 #endif  /* !XvExtension */
