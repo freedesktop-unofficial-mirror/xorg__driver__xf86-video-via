@@ -1,5 +1,16 @@
 2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_swov.c: 
+	* src/via_swov.h:
+	* src/via_video.c: 
+	* src/via_video.h:
+	* src/via_xvmc.c: 
+	* src/via_xvmc.h:
+	* src/via_xvpriv.h:
+	Indent above files after syncing them with openChrome.
+	
+2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* man/via.man:
 	* src/via.h:
 	* src/via_accel.c: (viaExaDownloadFromScreen),
