@@ -1,5 +1,11 @@
 2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
+	* src/via_id.c:
+	Update PCI-ids from lists maintained at unichrome.sf.net by 
+	Luc Verhaegen and openchrome.org by Xavier Bachelot.
+	
+2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
 	* src/via_swov.c: 
 	* src/via_swov.h:
 	* src/via_video.c: 
