@@ -2075,28 +2075,30 @@ viaInitExa(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     VIAPtr pVia = VIAPTR(pScrn);
-    ExaDriverPtr pExa = (ExaDriverPtr) xnfcalloc(sizeof(ExaDriverRec), 1);
+    ExaDriverPtr pExa = exaDriverAlloc();
 
     if (!pExa)
 	return NULL;
 
-    pExa->card.memoryBase = pVia->FBBase;
-    pExa->card.memorySize = pVia->FBFreeEnd;
-    pExa->card.offScreenBase = pScrn->virtualY * pVia->Bpl;
-    pExa->card.pixmapOffsetAlign = 32;
-    pExa->card.pixmapPitchAlign = 16;
-    pExa->card.flags = EXA_OFFSCREEN_PIXMAPS | EXA_OFFSCREEN_ALIGN_POT;
-    pExa->card.maxX = 2047;
-    pExa->card.maxY = 2047;
+    pExa->exa_major = 2;
+    pExa->exa_minor = 0;
+    pExa->memoryBase = pVia->FBBase;
+    pExa->memorySize = pVia->FBFreeEnd;
+    pExa->offScreenBase = pScrn->virtualY * pVia->Bpl;
+    pExa->pixmapOffsetAlign = 32;
+    pExa->pixmapPitchAlign = 16;
+    pExa->flags = EXA_OFFSCREEN_PIXMAPS | EXA_OFFSCREEN_ALIGN_POT;
+    pExa->maxX = 2047;
+    pExa->maxY = 2047;
 
-    pExa->accel.WaitMarker = viaAccelWaitMarker;
-    pExa->accel.MarkSync = viaAccelMarkSync;
-    pExa->accel.PrepareSolid = viaExaPrepareSolid;
-    pExa->accel.Solid = viaExaSolid;
-    pExa->accel.DoneSolid = viaExaDoneSolidCopy;
-    pExa->accel.PrepareCopy = viaExaPrepareCopy;
-    pExa->accel.Copy = viaExaCopy;
-    pExa->accel.DoneCopy = viaExaDoneSolidCopy;
+    pExa->WaitMarker = viaAccelWaitMarker;
+    pExa->MarkSync = viaAccelMarkSync;
+    pExa->PrepareSolid = viaExaPrepareSolid;
+    pExa->Solid = viaExaSolid;
+    pExa->DoneSolid = viaExaDoneSolidCopy;
+    pExa->PrepareCopy = viaExaPrepareCopy;
+    pExa->Copy = viaExaCopy;
+    pExa->DoneCopy = viaExaDoneSolidCopy;
 
 #ifdef XF86DRI
     if (pVia->directRenderingEnabled) {
@@ -2104,22 +2106,22 @@ viaInitExa(ScreenPtr pScreen)
 	if ((pVia->drmVerMajor > 2) ||
 	    ((pVia->drmVerMajor == 2) && (pVia->drmVerMinor >= 7))) {
 	    if (pVia->Chipset != VIA_K8M800)
-		pExa->accel.UploadToScreen = viaExaUploadToScreen;
-	    pExa->accel.DownloadFromScreen = viaExaDownloadFromScreen;
+		pExa->UploadToScreen = viaExaUploadToScreen;
+	    pExa->DownloadFromScreen = viaExaDownloadFromScreen;
 	}
 #endif
 	if (pVia->Chipset == VIA_K8M800)
-	    pExa->accel.UploadToScreen = viaExaTexUploadToScreen;
+	    pExa->UploadToScreen = viaExaTexUploadToScreen;
     }
 #endif
 
-    pExa->accel.UploadToScratch = viaExaUploadToScratch;
+    pExa->UploadToScratch = viaExaUploadToScratch;
 
     if (!pVia->noComposite) {
-	pExa->accel.CheckComposite = viaExaCheckComposite;
-	pExa->accel.PrepareComposite = viaExaPrepareComposite;
-	pExa->accel.Composite = viaExaComposite;
-	pExa->accel.DoneComposite = viaExaDoneSolidCopy;
+	pExa->CheckComposite = viaExaCheckComposite;
+	pExa->PrepareComposite = viaExaPrepareComposite;
+	pExa->Composite = viaExaComposite;
+	pExa->DoneComposite = viaExaDoneSolidCopy;
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,"[EXA] Disabling EXA accelerated composite.\n");
     }
@@ -2319,7 +2321,7 @@ viaFinishInitAccel(ScreenPtr pScreen)
 	     * Allocate upload and scratch space.
 	     */
 
-	    if (pVia->exaDriverPtr->accel.UploadToScreen ==
+	    if (pVia->exaDriverPtr->UploadToScreen ==
 		viaExaTexUploadToScreen) {
 
 		size = VIA_AGP_UPL_SIZE * 2 + 32;
