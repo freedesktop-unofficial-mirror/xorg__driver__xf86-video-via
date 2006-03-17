@@ -1,3 +1,9 @@
+2006-03-17  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
+	* src/via_accel.c: (viaInitExa):
+	* src/via_driver.c: (VIAPreInit):
+	Fix via EXA after API update.
+
 2006-03-08  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* src/via_id.c:

@@ -1462,27 +1462,24 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
 	if (pVia->useEXA) {
 	    XF86ModReqInfo req;
 	    int errmaj, errmin;
-
+	    memset(&req, 0, sizeof(req));
+ 
 	    req.majorversion = 2;
 	    req.minorversion = 0;
             if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
-		&errmaj, &errmin))
-	    {
+		&errmaj, &errmin)) {
 		LoaderErrorMsg(NULL, "exa", errmaj, errmin);
 		VIAFreeRec(pScrn);
 		return FALSE;
 	    }
 	    xf86LoaderReqSymLists(exaSymbols, NULL);
-	} else {
+	} 
 #endif /* VIA_HAVE_EXA */
-	    if(!xf86LoadSubModule(pScrn, "xaa")) {
-		VIAFreeRec(pScrn);
-		return FALSE;
-	    }
-	    xf86LoaderReqSymLists(xaaSymbols, NULL);
-#ifdef VIA_HAVE_EXA
+	if(!xf86LoadSubModule(pScrn, "xaa")) {
+	    VIAFreeRec(pScrn);
+	    return FALSE;
 	}
-#endif /* VIA_HAVE_EXA */
+	xf86LoaderReqSymLists(xaaSymbols, NULL);
     }
 
     if (pVia->hwcursor) {

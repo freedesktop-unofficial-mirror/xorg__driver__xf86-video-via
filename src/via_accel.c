@@ -2076,6 +2076,7 @@ viaInitExa(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     VIAPtr pVia = VIAPTR(pScrn);
     ExaDriverPtr pExa = exaDriverAlloc();
+    memset(pExa, 0, sizeof(*pExa));
 
     if (!pExa)
 	return NULL;
