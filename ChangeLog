@@ -1,7 +1,7 @@
 2006-03-17  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* src/via_driver.c:
-	Bugzilla #6291 <https://bugs.freedesktop.org/process_bug.cgi>
+	Bugzilla #6291 <https://bugs.freedesktop.org/show_bug.cgi?id=6291>
 	s/XF86_VERSION_CURRENT/XORG_VERSION_CURRENT/
 	(Reported by Eric Anholt)
 	
