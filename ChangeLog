@@ -1,3 +1,17 @@
+2006-03-19  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
+
+	* src/via_accel.c: (viaAccelPlaneMaskHelper),
+	(viaSetupForSolidLine), (viaSubsequentSolidTwoPointLine),
+	(viaSetupForDashedLine), (viaPixelARGB8888),
+	(viaExaDownloadFromScreen), (viaExaTexUploadToScreen),
+	(viaExaUploadToScreen), (viaExaCheckComposite),
+	(viaExaPrepareComposite), (viaInitExa), (viaInitAccel),
+	(viaExitAccel), (viaFinishInitAccel):
+	* src/via_driver.h:
+	Fix for XAA solid lines broken by the EXA merge.
+	(Openchrome Chgset 170).
+	Indent.
+	
 2006-03-17  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* src/via_driver.c:

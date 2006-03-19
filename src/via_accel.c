@@ -464,7 +464,7 @@ viaAccelPlaneMaskHelper(ViaTwodContext * tdc, CARD32 planeMask)
 	 */
 
 	for (i = 0; i < (1 << tdc->bytesPPShift); ++i) {
-	  curByteMask = (0xFF << (i << 3));
+	    curByteMask = (0xFF << (i << 3));
 
 	    if ((planeMask & curByteMask) == 0) {
 		curMask |= (1 << i);
@@ -845,6 +845,7 @@ viaSetupForSolidLine(ScrnInfoPtr pScrn, int color, int rop,
     viaAccelTransparentHelper(tdc, cb, 0x00, 0x00, FALSE);
     tdc->cmd = VIA_GEC_FIXCOLOR_PAT | VIAACCELPATTERNROP(rop);
     tdc->fgColor = color;
+    tdc->dashed = FALSE;
 
     BEGIN_RING(6);
     OUT_RING_H1(VIA_REG_GEMODE, tdc->mode);
@@ -911,7 +912,7 @@ viaSubsequentSolidTwoPointLine(ScrnInfoPtr pScrn, int x1, int y1,
     OUT_RING_H1(VIA_REG_LINE_XY, ((y1 << 16) | x1));
     OUT_RING_H1(VIA_REG_DIMENSION, dx);
     OUT_RING_H1(VIA_REG_LINE_ERROR,
-	(((dy << 1) - dx - error) & 0x3fff) | 0xFF0000);
+	(((dy << 1) - dx - error) & 0x3fff) | ((tdc->dashed) ? 0xFF0000 : 0));
     OUT_RING_H1(VIA_REG_GECMD, cmd);
     ADVANCE_RING;
 
@@ -981,6 +982,7 @@ viaSetupForDashedLine(ScrnInfoPtr pScrn, int fg, int bg, int rop,
     }
 
     tdc->pattern0 = pat;
+    tdc->dashed = TRUE;
 
     BEGIN_RING(8);
     OUT_RING_H1(VIA_REG_GEMODE, tdc->mode);
@@ -1400,9 +1402,9 @@ viaPixelARGB8888(unsigned format, void *pixelP, CARD32 * argb8888)
 	    bits) << 16;
 	shift += bits;
 	bits = PICT_FORMAT_A(format);
-	*argb8888 |= ((bits) ? 
+	*argb8888 |= ((bits) ?
 	    viaBitExpandHelper((pixel >> shift) & ((1 << bits) - 1),
-			       bits) : 0xFF) << 24;
+		bits) : 0xFF) << 24;
 	return;
     case PICT_TYPE_ABGR:
 	shift = 0;
@@ -1419,9 +1421,9 @@ viaPixelARGB8888(unsigned format, void *pixelP, CARD32 * argb8888)
 	    viaBitExpandHelper((pixel >> shift) & ((1 << bits) - 1), bits);
 	shift += bits;
 	bits = PICT_FORMAT_A(format);
-	*argb8888 |= ((bits) ? 
+	*argb8888 |= ((bits) ?
 	    viaBitExpandHelper((pixel >> shift) & ((1 << bits) - 1),
-			       bits) : 0xFF) << 24;
+		bits) : 0xFF) << 24;
 	return;
     default:
 	break;
@@ -1515,7 +1517,7 @@ viaExaDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 
     exaWaitSync(pScrn->pScreen);
     if (totSize < VIA_MIN_DOWNLOAD) {
-        bounceAligned = (char *)pVia->FBBase + srcOffset;
+	bounceAligned = (char *)pVia->FBBase + srcOffset;
 	while (h--) {
 	    memcpy(dst, bounceAligned, wBytes);
 	    dst += dst_pitch;
@@ -1556,7 +1558,7 @@ viaExaDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	curBlit->fb_addr = srcOffset;
 	curBlit->fb_stride = srcPitch;
 	curBlit->mem_addr = (unsigned char *)
-	  ((useBounceBuffer) ? bounceAligned + VIA_DMA_DL_SIZE * buf : dst);
+	    ((useBounceBuffer) ? bounceAligned + VIA_DMA_DL_SIZE * buf : dst);
 	curBlit->mem_stride = (useBounceBuffer) ? bouncePitch : dst_pitch;
 	curBlit->to_fb = 0;
 #if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
@@ -1631,7 +1633,6 @@ viaExaTexUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, char *src,
 
     if (!w || !h)
 	return TRUE;
-
 
     if (wBytes * h < VIA_MIN_TEX_UPLOAD) {
 	dstOffset = x * pDst->drawable.bitsPerPixel;
@@ -1773,13 +1774,13 @@ viaExaUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, char *src,
     blit.num_lines = h;
     blit.fb_addr = dstOffset;
     blit.fb_stride = dstPitch;
-    blit.mem_addr = (unsigned char *) src;
+    blit.mem_addr = (unsigned char *)src;
     blit.mem_stride = src_pitch;
     blit.to_fb = 1;
 #if (VIA_DRM_DRIVER_VERSION >= ((2 << 16) | 9))
-	blit.flags = 0;
+    blit.flags = 0;
 #else
-	blit.bounce_buffer = 0;
+    blit.bounce_buffer = 0;
 #endif
 
     exaWaitSync(pScrn->pScreen);
@@ -1855,16 +1856,16 @@ viaExaCheckComposite(int op, PicturePtr pSrcPicture,
      * Reject small composites early. They are done much faster in software.
      */
 
-    if (!pSrcPicture->repeat && 
+    if (!pSrcPicture->repeat &&
 	pSrcPicture->pDrawable->width *
 	pSrcPicture->pDrawable->height < VIA_MIN_COMPOSITE)
-      return FALSE;
+	return FALSE;
 
     if (pMaskPicture &&
-	!pMaskPicture->repeat && 
+	!pMaskPicture->repeat &&
 	pMaskPicture->pDrawable->width *
 	pMaskPicture->pDrawable->height < VIA_MIN_COMPOSITE)
-      return FALSE;
+	return FALSE;
 
     if (pMaskPicture && pMaskPicture->componentAlpha)
 	return FALSE;
@@ -1903,7 +1904,6 @@ viaExaCheckComposite(int op, PicturePtr pSrcPicture,
 	}
 	return TRUE;
     }
-
 #ifdef VIA_DEBUG_COMPOSITE
     ErrorF("Src format not supported:\n");
     viaExaPrintComposite(op, pSrcPicture, pMaskPicture, pDstPicture);
@@ -2011,8 +2011,7 @@ viaExaPrepareComposite(int op, PicturePtr pSrcPicture,
 	    return FALSE;
 	if (!v3d->setTexture(v3d, curTex++, offset,
 		exaGetPixmapPitch(pSrc), 1 << width, 1 << height,
-		pSrcPicture->format, via_repeat, via_repeat,
-		srcMode, isAGP)) 
+		pSrcPicture->format, via_repeat, via_repeat, srcMode, isAGP))
 	    return FALSE;
     }
 
@@ -2076,6 +2075,7 @@ viaInitExa(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     VIAPtr pVia = VIAPTR(pScrn);
     ExaDriverPtr pExa = exaDriverAlloc();
+
     memset(pExa, 0, sizeof(*pExa));
 
     if (!pExa)
@@ -2124,7 +2124,8 @@ viaInitExa(ScreenPtr pScreen)
 	pExa->Composite = viaExaComposite;
 	pExa->DoneComposite = viaExaDoneSolidCopy;
     } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,"[EXA] Disabling EXA accelerated composite.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	    "[EXA] Disabling EXA accelerated composite.\n");
     }
 
     if (!exaDriverInit(pScreen, pExa)) {
@@ -2201,7 +2202,8 @@ viaInitAccel(ScreenPtr pScreen)
 	if (pVia->driSize > (16 * 1024 * 1024))
 	    pVia->driSize = 16 * 1024 * 1024;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,"[EXA] Enabled EXA acceleration.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	    "[EXA] Enabled EXA acceleration.\n");
 	return TRUE;
     }
 #endif
@@ -2265,9 +2267,10 @@ viaExitAccel(ScreenPtr pScreen)
 		    &pVia->texAGPBuffer, sizeof(drm_via_mem_t));
 		pVia->texAddr = NULL;
 	    }
-	    if (pVia->scratchAddr && !pVia->IsPCI && 
-		((unsigned long)pVia->scratchAddr - 
-		 (unsigned long)pVia->agpMappedAddr == pVia->scratchOffset)) {
+	    if (pVia->scratchAddr && !pVia->IsPCI &&
+		((unsigned long)pVia->scratchAddr -
+		    (unsigned long)pVia->agpMappedAddr ==
+		    pVia->scratchOffset)) {
 		drmCommandWrite(pVia->drmFD, DRM_VIA_FREEMEM,
 		    &pVia->scratchAGPBuffer, sizeof(drm_via_mem_t));
 		pVia->scratchAddr = NULL;
@@ -2293,7 +2296,6 @@ viaExitAccel(ScreenPtr pScreen)
 	pVia->AccelInfoRec = NULL;
     }
 }
-
 
 /*
  * Allocate command buffer and 
@@ -2322,8 +2324,7 @@ viaFinishInitAccel(ScreenPtr pScreen)
 	     * Allocate upload and scratch space.
 	     */
 
-	    if (pVia->exaDriverPtr->UploadToScreen ==
-		viaExaTexUploadToScreen) {
+	    if (pVia->exaDriverPtr->UploadToScreen == viaExaTexUploadToScreen) {
 
 		size = VIA_AGP_UPL_SIZE * 2 + 32;
 		pVia->texAGPBuffer.context = 1;
