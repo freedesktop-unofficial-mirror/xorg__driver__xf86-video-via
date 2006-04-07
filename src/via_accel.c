@@ -34,6 +34,7 @@
 #include "xaarop.h"
 #include "miline.h"
 
+#include "via.h"
 #include "via_driver.h"
 #include "via_regs.h"
 #include "via_id.h"

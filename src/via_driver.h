@@ -37,7 +37,6 @@
 #include "vgaHW.h"
 #include "xf86.h"
 #include "xf86Resources.h"
-#include "xf86_ansic.h"
 #include "xf86Pci.h"
 #include "xf86PciInfo.h"
 #include "xf86_OSproc.h"
@@ -68,8 +67,8 @@
 
 #define DRIVER_NAME     "via"
 #define VERSION_MAJOR   0
-#define VERSION_MINOR   1
-#define PATCHLEVEL      33
+#define VERSION_MINOR   2
+#define PATCHLEVEL      0
 #define VIA_VERSION     ((VERSION_MAJOR<<24) | (VERSION_MINOR<<16) | PATCHLEVEL)
 
 #ifdef VIA_HAVE_EXA

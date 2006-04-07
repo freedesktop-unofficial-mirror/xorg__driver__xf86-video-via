@@ -1,3 +1,21 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/via.h:
+	* src/via_accel.c:
+	* src/via_dri.c:
+	* src/via_driver.h:
+	* src/via_memcpy.c:
+	* src/via_memory.c:
+	* src/via_mode.c:
+	* src/via_shadow.c:
+	* src/via_swov.c:
+	* src/via_vbe.c:
+	* src/via_vgahw.c:
+	* src/via_video.c:
+	* src/via_xvmc.c:
+	Unlibcwrap.  Bump server version requirement.  Bump to 0.2.0.
+
 2006-03-19  Thomas Hellstrom  <thomas-at-tungstengraphics.com>
 
 	* src/via_accel.c: (viaAccelPlaneMaskHelper),
