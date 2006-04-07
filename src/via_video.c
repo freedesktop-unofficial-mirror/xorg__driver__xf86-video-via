@@ -113,7 +113,7 @@ static int viaGetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 static int viaSetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 static int viaPutImage(ScrnInfoPtr, short, short, short, short, short, short,
     short, short, int, unsigned char *, short, short, Bool,
-    RegionPtr, pointer);
+    RegionPtr, pointer, DrawablePtr);
 static void nv12Blit(unsigned char *nv12Chroma,
     const unsigned char *uBuffer,
     const unsigned char *vBuffer,
@@ -634,7 +634,8 @@ RegionsEqual(RegionPtr A, RegionPtr B)
 
 static int
 viaReputImage(ScrnInfoPtr pScrn,
-    short drw_x, short drw_y, RegionPtr clipBoxes, pointer data)
+    short drw_x, short drw_y, RegionPtr clipBoxes, pointer data,
+    DrawablePtr pDraw)
 {
 
     DDUPDATEOVERLAY UpdateOverlay_Video;
@@ -1137,7 +1138,8 @@ viaPutImage(ScrnInfoPtr pScrn,
     short src_w, short src_h,
     short drw_w, short drw_h,
     int id, unsigned char *buf,
-    short width, short height, Bool sync, RegionPtr clipBoxes, pointer data)
+    short width, short height, Bool sync, RegionPtr clipBoxes, pointer data,
+    DrawablePtr pDraw)
 {
     VIAPtr pVia = VIAPTR(pScrn);
     viaPortPrivPtr pPriv = (viaPortPrivPtr) data;
