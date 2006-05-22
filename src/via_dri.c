@@ -850,7 +850,6 @@ VIADRIFinishScreenInit(ScreenPtr pScreen)
 	drm_via_sarea_t *saPriv;
 
 	saPriv=(drm_via_sarea_t *)DRIGetSAREAPrivate(pScreen);
-	assert(saPriv);
 	memset(saPriv, 0, sizeof(*saPriv));
 	saPriv->ctxOwner = -1;
     }
