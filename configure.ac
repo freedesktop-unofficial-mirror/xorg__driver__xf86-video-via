@@ -67,6 +67,7 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADERS([inttypes.h])
 
 
 if test "x$DRI" != xno; then
