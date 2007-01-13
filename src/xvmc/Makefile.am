@@ -24,8 +24,10 @@ libviaXvMCPro_la_SOURCES = \
 	xf86dristr.h
 
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
-libviaXvMC_la_LDFLAGS = @DRI_LIBS@ -version-number 1:0:0
-libviaXvMCPro_la_LDFLAGS = @DRI_LIBS@ -version-number 1:0:0
+libviaXvMC_la_LDFLAGS = -version-number 1:0:0
+libviaXvMCPro_la_LDFLAGS = -version-number 1:0:0
+libviaXvMC_la_LIBADD = @DRI_LIBS@
+libviaXvMCPro_la_LIBADD = @DRI_LIBS@
 else
 EXTRA_DIST = \
 	driDrawable.c \
