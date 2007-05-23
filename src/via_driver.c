@@ -121,8 +121,6 @@ typedef enum {
     OPTION_I2CSCAN,
 #endif /* HAVE_DEBUG */
     OPTION_VBEMODES,
-    OPTION_PCI_BURST,
-    OPTION_PCI_RETRY,
     OPTION_NOACCEL,
 #ifdef VIA_HAVE_EXA
     OPTION_ACCELMETHOD,
@@ -808,26 +806,6 @@ static Bool VIAPreInit(ScrnInfoPtr pScrn, int flags)
     	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
     		"Option: drixinerama ignored, no DRI support compiled into driver.\n");
 #endif
-    if (xf86ReturnOptValBool(VIAOptions, OPTION_PCI_BURST, FALSE)) {
-        pVia->pci_burst = TRUE;
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                   "Option: pci_burst - PCI burst read enabled\n");
-    }
-    else {
-        pVia->pci_burst = FALSE;
-    }
-
-    pVia->NoPCIRetry = 1;       /* default */
-    if (xf86ReturnOptValBool(VIAOptions, OPTION_PCI_RETRY, FALSE)) {
-        if (xf86ReturnOptValBool(VIAOptions, OPTION_PCI_BURST, FALSE)) {
-            pVia->NoPCIRetry = 0;
-            xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Option: pci_retry\n");
-        }
-        else {
-            xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                       "\"pci_retry\" option requires \"pci_burst\"\n");
-        }
-    }
 
     if (xf86IsOptionSet(VIAOptions, OPTION_SHADOW_FB)) {
         pVia->shadowFB = TRUE;
