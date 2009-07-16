@@ -61,6 +61,10 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 # Checks for pkg-config packages
 # via_3d_reg.h comes with libdrm ATM.
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.0.99.901 xproto xvmc fontsproto libdrm $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
+                  HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
+                  HAVE_XEXTPROTO_71="no")
+AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
